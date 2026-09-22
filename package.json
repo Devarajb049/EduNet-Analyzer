@@ -1,0 +1,15 @@
+{
+  "name": "edunet-analyzer-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "University E-Learning Network Performance Analyzer (NS-2 Simulation, Trace Analysis, and Protocol Visualization)",
+  "scripts": {
+    "postinstall": "npm --prefix frontend install",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "lint": "npm --prefix frontend run lint",
+    "backend": "python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload",
+    "test": "pytest backend/tests"
+  }
+}

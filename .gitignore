@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Production builds
+dist/
+frontend/dist/
+build/
+
+# Python & Virtual Environments
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+backend/venv/
+backend/.pytest_cache/
+.pytest_cache/
+
+# Databases
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+backend/*.db-journal
+
+
+# Generated simulation trace files
+*.tr
+*.nam
+simulation/traces/*.tr
+backend/app/traces/*.tr
+
+# Logs & Environment
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db
