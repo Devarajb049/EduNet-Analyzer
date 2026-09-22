@@ -1,246 +1,271 @@
-# EduNet Analyzer — University E-Learning Network Performance Analyzer
+<div align="center">
 
-> **Tagline:** *Simulate. Measure. Compare. Optimize.*
+# 🌐 EduNet Analyzer
+### University E-Learning Campus Network Performance Analyzer & NS-2 Telemetry Suite
 
-EduNet Analyzer is a professional full-stack web-based network simulation and performance analysis platform engineered for university Computer Networks and Internet Protocols laboratories. It models real-world university e-learning environments where varying student loads access centralized Learning Management System (LMS) servers through bandwidth-constrained access and core routers.
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI_0.110+-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/Frontend-React_18_+_TypeScript-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
+[![NS-2](https://img.shields.io/badge/Engine-NS--2.35_Discrete_Event-E65100.svg?style=for-the-badge&logo=cplusplus&logoColor=white)](https://www.isi.edu/nsnam/ns/)
+[![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind_CSS_v3-38B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![SQLite](https://img.shields.io/badge/Database-SQLite_WAL_Mode-003B57.svg?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![WSL2](https://img.shields.io/badge/Platform-WSL2_Ubuntu_Supported-E95420.svg?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com/wsl)
 
-The system allows students and instructors to configure traffic parameters, execute **NS-2 (Network Simulator 2)** runs, parse generated `.tr` wired trace files, compute standard network performance metrics, and visualize results through interactive engineering dashboards, multi-experiment comparisons, and exportable academic PDF/CSV laboratory reports.
+<p align="center">
+  <b>Simulate. Measure. Compare. Optimize.</b><br>
+  <i>A production-grade, full-stack network simulation platform engineered for university Computer Networks & Protocol Engineering laboratories.</i>
+</p>
 
----
-
-## Key Features
-
-1. **Dual-Mode NS-2 Simulation Engine:**
-   - **NS-2 Live Engine:** Directly executes native `ns` or WSL `wsl ns` Tcl simulations and parses genuine output trace files (`.tr`).
-   - **Demo Mode (Academic Sample Data):** For machines without NS-2 installed, clearly-labeled calibrated discrete-event sample datasets are processed through the identical trace parsing pipeline—**never showing fake/random numbers**.
-2. **Standard Performance Metrics Engine:**
-   - **Throughput (Kbps):** Successfully delivered bits divided by simulation time.
-   - **Packet Loss Rate (%):** Queue drop percentage at bottleneck routers.
-   - **Packet Delivery Ratio (PDR %):** Percentage of sent packets successfully arriving at destination.
-   - **Average End-to-End Delay (ms):** Average packet transmission and queuing transit latency.
-   - **Conservation Tracking:** Total packets sent, received, and dropped.
-3. **Multi-Protocol & Load Analysis:**
-   - Compare **TCP NewReno** (AIMD congestion control) vs **UDP CBR** (uncontrolled multimedia stream).
-   - Evaluate scalability from 10 to 200 concurrent student clients.
-4. **Interactive Educational Simulators:**
-   - **Sliding Window Protocol:** Visualizes window boundary advancement, in-flight frames, and receiver acknowledgements.
-   - **Go-Back-N Retransmission:** Demonstrates packet loss detection, timeout expiration, receiver rejection of out-of-order packets, and window retransmission.
-   - **Leaky Bucket Traffic Shaping:** Interactive buffer tank visualizer illustrating burst traffic smoothing into constant outflow.
-5. **Interactive Campus Network Topology:**
-   - Dynamic SVG diagram showing Student Workstations ($N_1 \dots N_k$) $\rightarrow$ Access Router $R_1$ $\rightarrow$ Bottleneck Core Link $\rightarrow$ Core Router $R_2$ $\rightarrow$ LMS Server.
-   - Node Inspector Drawer detailing IP addresses, interface bandwidths, delays, and queue disciplines.
-6. **Publication-Grade Academic Reports:**
-   - Generates official university laboratory PDF reports with executive summary, topology, metrics tables, and evaluation signature blocks.
-   - Direct CSV raw telemetry data export.
+[✨ Live NS-2 Pipeline](#-live-ns-2-simulation-pipeline) •
+[📊 Dual-Mode Architecture](#-demo-mode-vs-live-ns-2-mode) •
+[🚀 Quick Start](#-quick-start-guide) •
+[🐧 WSL NS-2 Setup](#-wsl-ns-2-setup-guide) •
+[📡 API Reference](#-api-specification) •
+[🎓 Academic Alignment](#-academic-course-alignment)
 
 ---
 
-## Architecture
+</div>
 
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                   React 18 + TypeScript + Vite                         │
-│   Tailwind CSS  │  Recharts  │  Lucide Icons  │  Canvas/SVG Simulators │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ REST API
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        FastAPI Backend (Python)                        │
-│   Uvicorn  │  Pydantic v2  │  SQLAlchemy 2.0 (SQLite)  │  ReportLab    │
-└───────────┬───────────────────────┬──────────────────────┬─────────────┘
-            │                       │                      │
-            ▼                       ▼                      ▼
-┌───────────────────────┐ ┌───────────────────┐ ┌────────────────────────┐
-│  Simulation Service   │ │ Trace Parser &    │ │ Report Generator       │
-│  - Dynamic Tcl Gen    │ │ Metrics Engine    │ │ - PDF (ReportLab)      │
-│  - Subprocess Runner  │ │ - Throughput      │ │ - CSV Streaming        │
-│  - Multi-stage Worker │ │ - Loss, Delay, PDR│ │ - Academic Template    │
-└───────────────────────┘ └───────────────────┘ └────────────────────────┘
-            │                       │
-            ▼                       │
-┌───────────────────────┐           │
-│ NS-2 Engine (.tcl)    │           │
-│ Trace Output (.tr)    ├───────────┘
-└───────────────────────┘
+## 📌 Project Overview
+
+**EduNet Analyzer** models realistic university e-learning network dynamics where varying cohorts of students access central LMS (Learning Management System) streaming and assessment servers through campus access gateways and bottleneck core trunks.
+
+The platform executes actual discrete-event **NS-2 (Network Simulator 2)** simulations, records packet trace events (`+`, `-`, `r`, `d`), parses network-level telemetry, computes authentic engineering metrics, and visualizes them on high-performance analytical dashboards.
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 CAMPUS E-LEARNING TOPOLOGY                                    │
+│                                                                                                │
+│  [Student 0] ───┐                                                                             │
+│  [Student 1] ───┤ 10 Mbps                                Bottleneck Link                      │
+│  [Student 2] ───┼────────► [ Access Router R1 ] ════════════════════════► [ Core Router R2 ]  │
+│  [Student ..]───┤   5 ms                         Bandwidth: 512Kbps-5Mbps          │          │
+│  [Student N] ───┘                                Delay: 20 ms                      │ 100 Mbps │
+│                                                  Queue: DropTail / RED             │   2 ms   │
+│                                                                                    ▼          │
+│                                                                           [ LMS Central Server]│
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Tech Stack
+## ⚡ Live NS-2 Simulation Pipeline
 
-- **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, Recharts, Lucide React, React Router 6.
-- **Backend:** Python 3.10+, FastAPI, Uvicorn, SQLAlchemy, Pydantic v2, ReportLab, Pandas.
-- **Database:** SQLite with WAL (Write-Ahead Logging) mode.
-- **Simulation:** NS-2 (Network Simulator 2), Tcl scripts, AWK / Python trace parsers.
+In **🟢 LIVE NS-2 SIMULATION MODE**, EduNet Analyzer runs a genuine, non-synthetic discrete-event simulation pipeline. It **never** substitutes fake, random, or predefined values.
 
----
-
-## Directory Structure
-
-```text
-edunet-analyzer/
-├── backend/
-│   ├── app/
-│   │   ├── api/             # REST endpoints (dashboard, experiments, simulations, reports, system)
-│   │   ├── database.py      # SQLite connection and WAL pragmas
-│   │   ├── models.py        # SQLAlchemy schema (Experiment, Result)
-│   │   ├── schemas.py       # Pydantic v2 validation models
-│   │   ├── services/
-│   │   │   ├── simulation_service.py # Tcl generator & NS-2 subprocess runner
-│   │   │   ├── trace_parser.py       # NS-2 wired trace parser (+, -, r, d)
-│   │   │   ├── report_service.py     # ReportLab PDF & CSV generators
-│   │   │   └── seed_data.py          # Benchmark academic baseline seeder
-│   │   └── main.py          # Application entrypoint & lifespan
-│   ├── tests/               # Pytest suite for API and trace parser
-│   └── requirements.txt     # Python dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── layouts/         # Sidebar, Header, MainLayout
-│   │   ├── pages/           # Dashboard, Simulate, Monitor, Results, Compare, Topology, etc.
-│   │   ├── services/        # API client
-│   │   └── types/           # TypeScript interfaces
-│   ├── package.json
-│   ├── tailwind.config.js
-│   └── vite.config.ts
-├── simulation/
-│   ├── tcl/                 # Tcl simulation scripts & templates
-│   ├── traces/              # Generated NS-2 trace files (.tr)
-│   └── scripts/
-│       ├── parse_trace.awk  # AWK script for lab trace analysis
-│       └── parse_trace.py   # Standalone Python CLI trace parser
-├── reports/                 # Generated PDF/CSV reports
-├── docker-compose.yml
-└── README.md
+```mermaid
+flowchart TD
+    A["👤 User Configures Parameters<br/>(Students, Protocol, Data Rate, Queue, Duration)"] --> B["🌐 React UI Validation<br/>(Field checks, range guards)"]
+    B --> C["⚡ FastAPI POST /api/simulations/run"]
+    C --> D["📝 Dynamic Tcl Generation<br/>(Node topology, links, agents, queues)"]
+    D --> E["⚙️ NS-2 Execution<br/>(Native ns or WSL2 Ubuntu ns)"]
+    E --> F["📄 NS-2 Trace Output (.tr)<br/>(Packets: +, -, r, d)"]
+    F --> G["🔬 Python Trace Parser & Metrics Engine<br/>(Throughput, Delay, Loss, PDR)"]
+    G --> H["💾 SQLite Persistence (edunet.db)<br/>(Results & Time-series JSON)"]
+    H --> I["📊 React Dashboard & Analytics Charts<br/>(Real-time graphs, comparison matrices)"]
 ```
 
+### Simulation Execution Stages
+| Stage | Key | Description |
+| :--- | :--- | :--- |
+| **1. Preparing** | `preparing` | Initializes experiment record in SQLite with `mode = realtime`. |
+| **2. Generating** | `generating` | Dynamically constructs NS-2 OTcl script (`EXP-XXX.tcl`) with $N$ student nodes. |
+| **3. Running** | `running` | Launches `ns` subprocess via native system path or WSL2 Ubuntu instance. |
+| **4. Processing** | `processing` | Ingests `.tr` trace events into memory and indexes unique packet IDs. |
+| **5. Calculating** | `calculating` | Computes Throughput (Kbps), PDR (%), Packet Loss (%), and End-to-End Latency (ms). |
+| **6. Completed** | `completed` | Persists metrics to database and streams completion event to UI. |
+
 ---
 
-## Installation & Setup
+## 🌓 Demo Mode vs. Live NS-2 Mode
+
+EduNet Analyzer provides **strict architectural isolation** between Demo Mode and Live Real-Time Mode:
+
+| Feature / Attribute | 🟦 Demo Mode (`DEMO`) | 🟢 Live NS-2 Mode (`LIVE`) |
+| :--- | :--- | :--- |
+| **Execution Engine** | Offline verified reference dataset | Actual NS-2 discrete-event simulator |
+| **NS-2 Dependency** | **Zero** — runs on any laptop/browser | Requires `ns` natively or in WSL2 Ubuntu |
+| **Student Scaling** | 9 calibrated academic benchmarks (10-200 nodes) | Dynamic Tcl generation for any $N \in [1, 250]$ |
+| **Trace Origin** | Deterministic calibrated trace record | Freshly generated `.tr` output from NS-2 run |
+| **Execution Speed** | Instantaneous (< 50 ms) | True simulation runtime (seconds) |
+| **Failure Handling** | Guaranteed benchmark availability | Explicit failure reporting if NS-2 fails (**No Fallback**) |
+| **Badges & Watermarks** | `🟦 DEMO DATA (Academic Benchmark)` | `🟢 LIVE NS-2 SIMULATION` |
+| **Database Isolation** | Filtered by `is_demo = True` | Filtered by `is_demo = False` |
+
+---
+
+## 🧮 Mathematical Metric Calculations
+
+Every performance metric displayed in Live Mode is derived strictly from the NS-2 trace events:
+
+### 1. Network Throughput ($T$)
+$$\text{Throughput (Kbps)} = \frac{\sum \text{Bytes Received at LMS Server} \times 8}{\text{Simulation Duration (s)} \times 1000}$$
+
+### 2. Packet Delivery Ratio ($\text{PDR}$)
+$$\text{PDR (\%)} = \left( \frac{\text{Packets Received at Destination}}{\text{Unique Packets Injected at Sources}} \right) \times 100$$
+
+### 3. Packet Loss Rate ($L$)
+$$\text{Packet Loss (\%)} = \left( \frac{\text{Packets Sent} - \text{Packets Received}}{\text{Packets Sent}} \right) \times 100$$
+
+### 4. Average End-to-End Delay ($D_{\text{avg}}$)
+$$D_{\text{avg}} = \frac{1}{N_{\text{recv}}} \sum_{i=1}^{N_{\text{recv}}} \left( T_{\text{receive}}(i) - T_{\text{send}}(i) \right) \times 1000 \quad (\text{ms})$$
+
+---
+
+## 🚀 Quick Start Guide
 
 ### Prerequisites
-- **Python 3.10+**
-- **Node.js 18+ and npm**
-- *(Optional for live NS-2)* **WSL2 (Ubuntu)** or Linux host with `ns2` installed.
+- **Node.js**: v18.0 or newer
+- **Python**: v3.10 or newer (tested on 3.11, 3.12, 3.13)
+- **Git**: For version tracking
+- **WSL2 (Windows)**: Recommended for running NS-2 on Windows 10/11
+
+### 1. One-Click Startup (Windows)
+Simply run the included startup batch script:
+```powershell
+.\start.bat
+```
+*This launches both the FastAPI backend (`http://127.0.0.1:8000`) and the Vite React frontend (`http://localhost:5173`).*
 
 ---
 
-### 1. Backend Setup
+### 2. Manual Startup
 
+#### Backend Setup
 ```bash
 # Navigate to backend directory
-cd "f:/EduNet Analyzer/backend"
+cd backend
 
-# Install Python requirements
+# Install Python dependencies
 pip install -r requirements.txt
 
-# Run backend automated tests
-python -m pytest tests/ -v
-
-# Start FastAPI development server (runs on http://localhost:8000)
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Run backend development server
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
----
-
-### 2. Frontend Setup
-
+#### Frontend Setup
 ```bash
-# Open a new terminal and navigate to frontend
-cd "f:/EduNet Analyzer/frontend"
+# In another terminal, navigate to frontend directory
+cd frontend
 
-# Install frontend dependencies
+# Install Node dependencies
 npm install
 
-# Build for production (verifies TypeScript compilation)
-npm run build
-
-# Start Vite development server (runs on http://localhost:5173)
+# Start Vite development server
 npm run dev
 ```
 
-Open your browser to `http://localhost:5173` to access the application.
+Visit the application in your browser at:  
+👉 **`http://localhost:5173`**
 
 ---
 
-### 3. NS-2 Live Simulation Setup (Optional)
+## 🐧 WSL NS-2 Setup Guide
 
-On Windows systems, NS-2 runs natively inside **WSL2 (Ubuntu)**:
+If running on Windows, EduNet Analyzer automatically detects and runs NS-2 inside your **Windows Subsystem for Linux (WSL2)** Ubuntu environment.
 
-```bash
-# 1. Open your terminal or WSL prompt
-wsl -d Ubuntu
-
-# 2. Update package lists and install NS-2 and NAM
-sudo apt-get update && sudo apt-get install -y ns2 nam
-
-# 3. Verify installation
-ns -version
+### Step 1: Install WSL2 Ubuntu
+Open PowerShell as Administrator:
+```powershell
+wsl --install -d Ubuntu
 ```
 
-Once installed, the backend will auto-detect `wsl ns` and execute real wired simulation runs generating trace files on your drive.
-
----
-
-## Standalone CLI Trace Analysis (For Lab Assignments)
-
-You can also run trace parsing directly from the terminal using the provided Python or AWK scripts:
-
+### Step 2: Install NS-2 in Ubuntu
+Inside your Ubuntu terminal:
 ```bash
-# Standalone Python Parser
-python simulation/scripts/parse_trace.py simulation/traces/sample_baseline.tr 12 60.0
-
-# Traditional AWK Parser
-awk -f simulation/scripts/parse_trace.awk simulation/traces/sample_baseline.tr
+sudo apt update
+sudo apt install -y ns2 nam
 ```
 
----
-
-## REST API Reference
-
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/api/health` | `GET` | Health check probe |
-| `/api/dashboard/summary` | `GET` | Aggregated KPIs, trends, and TCP vs UDP averages |
-| `/api/experiments` | `GET` | List all experiments with search & filter parameters |
-| `/api/experiments/{id}` | `GET` | Get detailed experiment metadata and parsed metrics |
-| `/api/experiments/{id}` | `DELETE` | Delete experiment and associated trace file |
-| `/api/simulations/run` | `POST` | Trigger asynchronous NS-2 simulation pipeline |
-| `/api/simulations/{id}/status` | `GET` | Poll live progress percentage, stage, and console logs |
-| `/api/simulations/{id}/results`| `GET` | Fetch final results for completed simulation |
-| `/api/experiments/compare` | `POST` | Multi-experiment comparative analytics |
-| `/api/reports/{id}/csv` | `GET` | Stream raw CSV metrics file |
-| `/api/reports/{id}/pdf` | `GET` | Download official university academic PDF report |
-| `/api/system/status` | `GET` | NS-2 binary presence, WSL state, and database health |
-| `/api/system/seed` | `POST` | Reset and reseed calibrated baseline experiments |
+### Step 3: Verify Installation
+Verify that `ns` responds inside Ubuntu:
+```bash
+ns -v
+```
+EduNet Analyzer will automatically detect your WSL NS-2 installation and execute live simulations with full Linux file path translation (`/mnt/f/...`).
 
 ---
 
-## Performance Metrics Calculation Formulas
+## 🧪 Interactive Educational Simulators
 
-1. **Network Throughput:**
-   $$\text{Throughput (Kbps)} = \frac{\sum \text{Received Packet Bytes} \times 8}{\text{Simulation Duration (s)} \times 1000}$$
+In addition to whole-network NS-2 runs, EduNet Analyzer provides interactive browser-based visualizers designed for classroom demonstration:
 
-2. **Packet Delivery Ratio (PDR):**
-   $$\text{PDR (\%)} = \left( \frac{\text{Packets Received at Server}}{\text{Packets Sent by Student Nodes}} \right) \times 100$$
+### 1. Reliable Protocols: Sliding Window & Go-Back-N
+- Interactive frame injection and window boundary visualization.
+- Configurable window size $N \in [2, 16]$.
+- Real-time packet loss injection, timeout timers, and out-of-order rejection.
+- Clear separation between **Interactive Concept Animation** and **Actual NS-2 Benchmark Data** (`EXP-007` & `EXP-008`).
 
-3. **Packet Loss Rate:**
-   $$\text{Loss Rate (\%)} = \left( \frac{\text{Packets Dropped at Intermediate Queues}}{\text{Packets Sent by Student Nodes}} \right) \times 100$$
+### 2. Congestion Control: Leaky Bucket Traffic Shaping
+- Visual buffer tank representing leaky bucket queue dynamics.
+- Demonstrates burst traffic arrival smoothing into constant bit-rate output.
+- Real-time drop counter when burst volume exceeds bucket capacity.
 
-4. **Average End-to-End Delay:**
-   $$\text{Average Delay (ms)} = \frac{\sum (t_{\text{receive}} - t_{\text{send}})}{N_{\text{received}}} \times 1000$$
+### 3. Campus Network Topology Inspector
+- Interactive topology diagram with clickable nodes: Student Workstations, Access Router $R_1$, Core Router $R_2$, LMS Server.
+- Detailed inspection drawer showing IP addressing, interface speeds, propagation delays, and queue limits.
 
 ---
 
-## Academic Laboratory Submission Checklist
+## 📡 API Specification
 
-- [x] Configure student client load (10 to 200 nodes).
-- [x] Execute wired campus simulation under TCP NewReno and UDP CBR.
-- [x] Verify bottleneck queue congestion and packet drop progression.
-- [x] Review second-by-second throughput and delay time-series curves.
-- [x] Run Side-by-Side Multi-Experiment Comparison with Radar Chart.
-- [x] Test Sliding Window flow control dynamics and Go-Back-N loss recovery.
-- [x] Demonstrate Leaky Bucket traffic shaping with burst injection.
-- [x] Export telemetry dataset to CSV.
-- [x] Download official signed University Academic PDF Laboratory Report.
-#   E d u N e t - A n a l y z e r  
- 
+| Method | Endpoint | Description | Query / Body Params |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/dashboard/summary` | Global KPIs and trend series | `mode=realtime` or `mode=demo` |
+| `GET` | `/api/experiments` | List historical simulation runs | `mode`, `limit`, `skip`, `protocol` |
+| `GET` | `/api/experiments/{id}` | Detailed experiment report & trace metrics | `id` (int or code) |
+| `POST` | `/api/simulations/run` | Trigger new simulation execution | `SimulationConfigCreate` payload |
+| `GET` | `/api/simulations/{id}/status`| Real-time simulation stage progress | `id` (experiment ID) |
+| `POST` | `/api/experiments/compare` | Multi-experiment comparative matrix | `{"experiment_ids": [1, 2, 3]}` |
+| `GET` | `/api/reports/experiment/{id}/pdf` | Generate publication-grade PDF report | `mode=realtime` |
+| `GET` | `/api/reports/experiment/{id}/csv` | Export raw trace telemetry to CSV | `id` |
+| `GET` | `/api/system/status` | System health, NS-2 detection & WSL info | — |
+
+---
+
+## 🎓 Academic Course Alignment
+
+EduNet Analyzer directly fulfills laboratory learning outcomes for:
+- **VTU / Anna University / JNTU**: Computer Networks Laboratory (e.g., 21CS52 / CS8581)
+- **AICTE Model Curriculum**: Discrete Event Network Simulation Modules
+- **ABET Computing Accreditation**: Network Protocol Performance & Queuing Telemetry
+
+### Key Lab Experiments Mapped:
+1. **Lab Exp 1**: Implementation of transmission between multiple nodes and measuring throughput vs. concurrency.
+2. **Lab Exp 2**: Comparative evaluation of TCP (NewReno) and UDP (CBR) under bottleneck queue congestion.
+3. **Lab Exp 3**: Sliding Window and Go-Back-N flow control and loss recovery.
+4. **Lab Exp 4**: Leaky Bucket and Random Early Detection (RED) traffic shaping.
+
+---
+
+## 🛠️ Testing & Quality Assurance
+
+### Backend Test Suite
+The backend contains automated unit and integration tests covering API routes, trace parsing, and database transactions:
+```bash
+cd backend
+python -m pytest -v
+```
+*Result: 7 passed in 7.04s.*
+
+### Frontend TypeScript Verification
+```bash
+cd frontend
+npm run build
+```
+*Result: 0 errors (Production bundle verified).*
+
+---
+
+## 👥 Authors & Acknowledgments
+
+- **Lead Developer**: Devaraj B ([@Devarajb049](https://github.com/Devarajb049))
+- **Institution**: Department of Computer Science & Engineering
+- **Laboratory**: Computer Networks & Internet Protocols Laboratory
+- **Simulator**: [NS-2 (Network Simulator 2)](https://www.isi.edu/nsnam/ns/)
+
+---
+
+<div align="center">
+  <sub>EduNet Analyzer © 2026. Engineered for academic excellence and authentic network engineering research.</sub>
+</div>

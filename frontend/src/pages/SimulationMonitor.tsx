@@ -19,13 +19,25 @@ import { SimulationStatusResponse, Experiment } from '../types';
 import { useSimulationMode } from '../context/SimulationModeContext';
 
 const STAGES = [
-  { key: 'PREPARING', label: 'Preparing Environment', icon: Cpu },
-  { key: 'GENERATING_TOPOLOGY', label: 'Generating Topology & Tcl', icon: Network },
-  { key: 'RUNNING_NS2', label: 'Executing NS-2 Engine', icon: FileCode },
-  { key: 'PROCESSING_TRACE', label: 'Parsing Trace Events', icon: Activity },
-  { key: 'CALCULATING_METRICS', label: 'Calculating Metrics', icon: BarChart3 },
-  { key: 'COMPLETED', label: 'Completed', icon: CheckCircle2 },
+  { key: 'preparing', label: 'Preparing Simulation', icon: Cpu },
+  { key: 'generating', label: 'Generating NS-2 File', icon: Network },
+  { key: 'running', label: 'Running Simulation', icon: FileCode },
+  { key: 'processing', label: 'Processing Trace', icon: Activity },
+  { key: 'calculating', label: 'Calculating Metrics', icon: BarChart3 },
+  { key: 'completed', label: 'Completed', icon: CheckCircle2 },
 ];
+
+const normalizeStage = (stage: string = ''): string => {
+  const s = stage.toLowerCase();
+  if (s.includes('prep')) return 'preparing';
+  if (s.includes('gen') || s.includes('topol')) return 'generating';
+  if (s.includes('run') || s.includes('ns2') || s.includes('start')) return 'running';
+  if (s.includes('proc') || s.includes('trace')) return 'processing';
+  if (s.includes('calc') || s.includes('metric')) return 'calculating';
+  if (s.includes('comp')) return 'completed';
+  if (s.includes('fail')) return 'failed';
+  return s;
+};
 
 export const SimulationMonitor: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -101,7 +113,10 @@ export const SimulationMonitor: React.FC = () => {
     }
   }, [statusData?.logs]);
 
-  const currentStageIndex = STAGES.findIndex((s) => s.key === statusData?.current_stage);
+  const normStage = normalizeStage(statusData?.current_stage || statusData?.status || '');
+  const currentStageIndex = STAGES.findIndex((s) => s.key === normStage);
+  const isFailed = statusData?.status?.toLowerCase() === 'failed';
+  const isCompleted = statusData?.status?.toLowerCase() === 'completed';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -133,22 +148,25 @@ export const SimulationMonitor: React.FC = () => {
         )}
       </div>
 
-      {statusData?.status === 'FAILED' && (
+      {isFailed && (
         <div className="p-5 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs space-y-2">
           <div className="flex items-center gap-2 font-bold text-rose-950 text-sm">
             <AlertCircle className="w-5 h-5 text-rose-600" />
-            <span>LIVE SIMULATION UNAVAILABLE</span>
+            <span>
+              {statusData?.error?.includes('UNAVAILABLE')
+                ? '❌ LIVE NS-2 SIMULATION UNAVAILABLE'
+                : statusData?.error?.includes('Trace')
+                ? '❌ Trace Processing Failed'
+                : '❌ Simulation Failed'}
+            </span>
           </div>
-          <p className="font-semibold text-rose-900">
-            NS-2 could not be executed.
-          </p>
-          <p className="text-rose-700">
-            {statusData.error || 'Please install/configure NS-2 or use Demo Mode.'}
+          <p className="font-semibold text-rose-900 whitespace-pre-line">
+            {statusData?.error || 'The NS-2 simulation did not complete successfully. No simulated results were generated.'}
           </p>
           <div className="pt-2 flex items-center gap-3">
             <button
               onClick={() => {
-                setMode('DEMO');
+                setMode('demo');
                 navigate('/');
               }}
               className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs transition-colors shadow-xs"
@@ -162,6 +180,27 @@ export const SimulationMonitor: React.FC = () => {
               WSL NS-2 Configuration Guide
             </Link>
           </div>
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="p-5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-bold text-emerald-950 text-sm">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <span>Simulation Completed Successfully</span>
+            </div>
+            <Link
+              to={`/experiments/${simId}`}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <span>View Results</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <p className="text-emerald-800">
+            Real NS-2 simulation trace parsed and stored in database. Results ready for analysis.
+          </p>
         </div>
       )}
 

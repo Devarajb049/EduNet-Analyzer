@@ -30,12 +30,14 @@ class ResultResponse(ResultBase):
 class SimulationConfigCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=128)
     description: Optional[str] = Field(default="")
-    users: int = Field(default=10, ge=1, le=200)
+    users: int = Field(default=10, ge=1, le=250)
     protocol: str = Field(default="TCP") # "TCP" or "UDP"
     traffic_level: str = Field(default="Medium") # "Low", "Medium", "High", "Custom"
     data_rate: str = Field(default="1 Mbps")
     simulation_time: float = Field(default=60.0, ge=5.0, le=300.0)
     experiment_type: str = Field(default="Normal Traffic")
+    window_size: Optional[int] = Field(default=32, ge=1, le=128)
+    packet_size: Optional[int] = Field(default=1024, ge=64, le=65535)
     force_demo: Optional[bool] = False
 
 class ExperimentResponse(BaseModel):
@@ -87,9 +89,12 @@ class ComparisonResponse(BaseModel):
 class SimulationStatusResponse(BaseModel):
     id: int
     exp_code: str
+    experiment_id: Optional[str] = None
     status: str
+    progress: Optional[int] = None
     progress_percent: int
     current_stage: str
+    message: Optional[str] = None
     stage_message: str
     logs: List[str]
     error: Optional[str] = None

@@ -68,8 +68,8 @@ def parse_ns2_trace_file(
 
             # Enqueue at source (first hop out of student nodes)
             if event == "+":
-                sent_packets += 1
                 if pkt_id not in packet_send_times:
+                    sent_packets += 1
                     packet_send_times[pkt_id] = time_sec
 
             # Receive at destination e-learning server
@@ -98,10 +98,13 @@ def parse_ns2_trace_file(
     # Throughput (Kbps) = (bytes * 8) / (duration * 1000)
     throughput_kbps = round((total_received_bytes * 8.0) / (effective_duration * 1000.0), 2)
 
-    # Packet Delivery Ratio (PDR %)
+    # Packet Delivery Ratio (PDR %) and Packet Loss
+    # Packet Loss = Packets Sent - Packets Received
+    # PDR = Packets Received / Packets Sent * 100
     if sent_packets > 0:
         pdr_percent = round((received_packets / sent_packets) * 100.0, 2)
-        packet_loss_percent = round((dropped_packets / sent_packets) * 100.0, 2)
+        packets_lost = max(0, sent_packets - received_packets)
+        packet_loss_percent = round((packets_lost / sent_packets) * 100.0, 2)
     else:
         pdr_percent = 0.0
         packet_loss_percent = 0.0

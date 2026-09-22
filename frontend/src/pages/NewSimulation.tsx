@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Play, Sliders, Info, Network, Check, AlertCircle, Zap, ShieldCheck } from 'lucide-react';
+import { Play, Sliders, Info, Network, AlertCircle, Zap, ShieldCheck } from 'lucide-react';
 import { useDataService } from '../services/dataService';
 import { SimulationConfig } from '../types';
 import { useSimulationMode, ModeBadge, ModeSelector } from '../context/SimulationModeContext';
@@ -12,6 +12,7 @@ export const NewSimulation: React.FC = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: boolean }>({});
 
   const [formData, setFormData] = useState<SimulationConfig>({
     name: isDemo ? 'Demo Scenario: 25 Students (TCP)' : 'Live NS-2 Simulation: Campus Workload',
@@ -24,6 +25,8 @@ export const NewSimulation: React.FC = () => {
     data_rate: '1 Mbps',
     simulation_time: 60,
     experiment_type: 'Normal Traffic',
+    packet_size: 1024,
+    window_size: 32,
     force_demo: isDemo,
   });
 
@@ -42,30 +45,76 @@ export const NewSimulation: React.FC = () => {
   };
 
   const handleTrafficPreset = (level: 'Low' | 'Medium' | 'High' | 'Custom') => {
-    let userCount = formData.users;
     let rate = formData.data_rate;
     if (level === 'Low') {
-      userCount = 10;
-      rate = '1 Mbps';
+      rate = '512 Kbps';
     } else if (level === 'Medium') {
-      userCount = 50;
       rate = '1 Mbps';
     } else if (level === 'High') {
-      userCount = 100;
-      rate = '1 Mbps';
+      rate = '2 Mbps';
     }
     setFormData({
       ...formData,
       traffic_level: level,
-      users: userCount,
       data_rate: rate,
     });
   };
 
+  const validateConfig = (): boolean => {
+    const errs: { [key: string]: boolean } = {};
+
+    // 1. Number of students > 0
+    if (!formData.users || formData.users <= 0) {
+      errs.users = true;
+    }
+
+    // 2. Data rate is valid
+    if (!formData.data_rate || !formData.data_rate.trim()) {
+      errs.data_rate = true;
+    }
+
+    // 3. Duration > 0
+    if (!formData.simulation_time || formData.simulation_time <= 0) {
+      errs.simulation_time = true;
+    }
+
+    // 4. Packet size is valid
+    if (!formData.packet_size || formData.packet_size <= 0 || formData.packet_size > 65535) {
+      errs.packet_size = true;
+    }
+
+    // 5. Protocol is supported
+    if (!['TCP', 'UDP'].includes(formData.protocol)) {
+      errs.protocol = true;
+    }
+
+    // 6. Experiment type is supported
+    const supportedTypes = [
+      'Normal Traffic',
+      'High Traffic',
+      'TCP vs UDP',
+      'Leaky Bucket',
+      'Sliding Window',
+      'Go-Back-N',
+    ];
+    if (!supportedTypes.includes(formData.experiment_type)) {
+      errs.experiment_type = true;
+    }
+
+    // Name check
+    if (!formData.name.trim()) {
+      errs.name = true;
+    }
+
+    setValidationErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      setError('Please provide a descriptive Experiment Name.');
+
+    if (!validateConfig()) {
+      setError('❌ Invalid Simulation Configuration\n\nPlease correct the highlighted fields.');
       return;
     }
 
@@ -90,7 +139,7 @@ export const NewSimulation: React.FC = () => {
     } catch (err: any) {
       if (!isDemo) {
         setError(
-          '❌ Real-Time Simulation Failed: Actual NS-2 results could not be generated. Check NS-2 configuration and try again.'
+          '❌ LIVE NS-2 SIMULATION UNAVAILABLE: Actual NS-2 execution could not complete. Check your NS-2 installation in Settings or switch to Demo Mode.'
         );
       } else {
         setError(err.message || 'Failed to start demo simulation.');
@@ -118,7 +167,7 @@ export const NewSimulation: React.FC = () => {
               <p className="text-xs text-[#64748B]">
                 {isDemo
                   ? 'Instantly select and execute a verified demonstration scenario (zero NS-2 dependency)'
-                  : 'Configure and execute discrete-event NS-2 simulation modeling campus network telemetry'}
+                  : 'Configure discrete-event simulation: Generates dynamic Tcl, runs NS-2, and parses actual trace (.tr)'}
               </p>
             </div>
           </div>
@@ -126,7 +175,7 @@ export const NewSimulation: React.FC = () => {
         </div>
       </div>
 
-      {/* Demo Mode Scenario Selector (Section 4) */}
+      {/* Demo Mode Scenario Selector */}
       {isDemo && (
         <div className="p-5 bg-blue-50/80 border border-blue-200 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
@@ -158,14 +207,14 @@ export const NewSimulation: React.FC = () => {
         </div>
       )}
 
-      {/* Real-Time Simulation Failure Notice */}
+      {/* Validation / Execution Notice */}
       {error && (
         <div className="p-5 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs space-y-2 shadow-xs">
           <div className="flex items-center gap-2 font-bold text-rose-950 text-sm">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-            <span>Simulation Execution Notice</span>
+            <span>Simulation Configuration Notice</span>
           </div>
-          <p className="font-semibold">{error}</p>
+          <p className="font-semibold whitespace-pre-line">{error}</p>
           {!isDemo && (
             <div className="pt-2 flex items-center gap-3">
               <button
@@ -206,8 +255,13 @@ export const NewSimulation: React.FC = () => {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[#F8FAFC]"
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (validationErrors.name) setValidationErrors({ ...validationErrors, name: false });
+                }}
+                className={`w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[#F8FAFC] ${
+                  validationErrors.name ? 'border-rose-500 ring-2 ring-rose-200' : 'border-[#CBD5E1]'
+                }`}
                 placeholder="e.g. 50-Node Peak Lecture Simulation"
               />
             </div>
@@ -229,26 +283,33 @@ export const NewSimulation: React.FC = () => {
             {/* Student Clients */}
             <div>
               <label className="block text-xs font-semibold text-[#0F172A] mb-1">
-                Student Clients (n nodes)
+                Number of Students (Nodes) <span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
                 min={1}
                 max={250}
                 value={formData.users}
-                onChange={(e) => setFormData({ ...formData, users: parseInt(e.target.value, 10) || 1 })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono"
+                onChange={(e) => {
+                  setFormData({ ...formData, users: parseInt(e.target.value, 10) || 0 });
+                  if (validationErrors.users) setValidationErrors({ ...validationErrors, users: false });
+                }}
+                className={`w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono ${
+                  validationErrors.users ? 'border-rose-500 ring-2 ring-rose-200' : 'border-[#CBD5E1]'
+                }`}
               />
-              <p className="text-[11px] text-slate-400 mt-1">Concurrently streaming students</p>
+              <p className="text-[11px] text-slate-400 mt-1">Concurrently active student nodes</p>
             </div>
 
             {/* Transport Protocol */}
             <div>
-              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Transport Protocol</label>
+              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Protocol <span className="text-rose-500">*</span></label>
               <select
                 value={formData.protocol}
                 onChange={(e) => setFormData({ ...formData, protocol: e.target.value as 'TCP' | 'UDP' })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
+                className={`w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold ${
+                  validationErrors.protocol ? 'border-rose-500 ring-2 ring-rose-200' : 'border-[#CBD5E1]'
+                }`}
               >
                 <option value="TCP">TCP (NewReno with Congestion Control)</option>
                 <option value="UDP">UDP (CBR Constant Bit Rate Stream)</option>
@@ -260,13 +321,19 @@ export const NewSimulation: React.FC = () => {
 
             {/* Bottleneck Data Rate */}
             <div>
-              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Bottleneck Link Rate</label>
+              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Data Rate <span className="text-rose-500">*</span></label>
               <select
                 value={formData.data_rate}
-                onChange={(e) => setFormData({ ...formData, data_rate: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono"
+                onChange={(e) => {
+                  setFormData({ ...formData, data_rate: e.target.value });
+                  if (validationErrors.data_rate) setValidationErrors({ ...validationErrors, data_rate: false });
+                }}
+                className={`w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono ${
+                  validationErrors.data_rate ? 'border-rose-500 ring-2 ring-rose-200' : 'border-[#CBD5E1]'
+                }`}
               >
-                <option value="512 Kbps">512 Kbps (Constrained)</option>
+                <option value="256 Kbps">256 Kbps (Severe Bottleneck)</option>
+                <option value="512 Kbps">512 Kbps (Constrained Campus)</option>
                 <option value="1 Mbps">1 Mbps (Standard Campus)</option>
                 <option value="2 Mbps">2 Mbps (High Speed)</option>
                 <option value="5 Mbps">5 Mbps (High Concurrency)</option>
@@ -275,14 +342,30 @@ export const NewSimulation: React.FC = () => {
             </div>
           </div>
 
-          {/* Scenario & Duration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {/* Traffic Level & Experiment Type */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
-              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Scenario Type</label>
+              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Traffic Level</label>
+              <select
+                value={formData.traffic_level}
+                onChange={(e) => handleTrafficPreset(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
+              >
+                <option value="Low">Low (Light student browsing)</option>
+                <option value="Medium">Medium (Moderate classroom stream)</option>
+                <option value="High">High (Campus-wide lecture peak)</option>
+                <option value="Custom">Custom (Configured link limit)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Experiment Type <span className="text-rose-500">*</span></label>
               <select
                 value={formData.experiment_type}
                 onChange={(e) => setFormData({ ...formData, experiment_type: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className={`w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+                  validationErrors.experiment_type ? 'border-rose-500 ring-2 ring-rose-200' : 'border-[#CBD5E1]'
+                }`}
               >
                 <option value="Normal Traffic">Normal Traffic (Standard E-Learning)</option>
                 <option value="High Traffic">High Traffic (Peak Lecture Load)</option>
@@ -294,16 +377,59 @@ export const NewSimulation: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Simulation Duration</label>
+              <label className="block text-xs font-semibold text-[#0F172A] mb-1">Simulation Duration <span className="text-rose-500">*</span></label>
               <select
                 value={formData.simulation_time}
                 onChange={(e) => setFormData({ ...formData, simulation_time: parseFloat(e.target.value) })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className={`w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+                  validationErrors.simulation_time ? 'border-rose-500 ring-2 ring-rose-200' : 'border-[#CBD5E1]'
+                }`}
               >
+                <option value={10}>10 Seconds (Rapid test)</option>
                 <option value={30}>30 Seconds (Fast check)</option>
                 <option value={60}>60 Seconds (Standard Lab)</option>
                 <option value={90}>90 Seconds (Steady State)</option>
               </select>
+            </div>
+          </div>
+
+          {/* Packet Size & Window Size Tuning */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+            <div>
+              <label className="block text-xs font-semibold text-[#0F172A] mb-1">
+                Packet Size (Bytes) <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                min={64}
+                max={9000}
+                value={formData.packet_size || 1024}
+                onChange={(e) => {
+                  setFormData({ ...formData, packet_size: parseInt(e.target.value, 10) || 0 });
+                  if (validationErrors.packet_size) setValidationErrors({ ...validationErrors, packet_size: false });
+                }}
+                className={`w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono ${
+                  validationErrors.packet_size ? 'border-rose-500 ring-2 ring-rose-200' : 'border-[#CBD5E1]'
+                }`}
+                placeholder="1024"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Payload MTU size per packet</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#0F172A] mb-1">
+                TCP Window Size (Packets)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={128}
+                value={formData.window_size || 32}
+                onChange={(e) => setFormData({ ...formData, window_size: parseInt(e.target.value, 10) || 32 })}
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono"
+                placeholder="32"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Maximum unacknowledged packets inflight</p>
             </div>
           </div>
         </div>
@@ -315,7 +441,7 @@ export const NewSimulation: React.FC = () => {
             <div>
               <h4 className="text-xs font-bold text-[#0F172A]">Simulated NS-2 Topology Plan</h4>
               <p className="text-[11px] text-[#64748B]">
-                {formData.users} Student Nodes (10Mb, 5ms) ➔ Access Router R1 ➔ [{formData.data_rate}, 20ms] ➔ Core Router R2 ➔ LMS Server (100Mb)
+                {formData.users} Student Nodes (10Mb, 5ms) ➔ Access Router R1 ➔ [{formData.data_rate}, 20ms, {formData.experiment_type === 'Leaky Bucket' ? 'RED' : 'DropTail'}] ➔ Core Router R2 ➔ LMS Server (100Mb)
               </p>
             </div>
           </div>
@@ -324,12 +450,12 @@ export const NewSimulation: React.FC = () => {
           </span>
         </div>
 
-        {/* Submit Button (Section 12: Run Demo Experiment vs Run NS-2 Simulation) */}
+        {/* Submit Button */}
         <div className="flex justify-end gap-3">
           <button
             type="submit"
             disabled={submitting}
-            className={`flex items-center gap-2 font-semibold text-xs px-6 py-3 rounded-lg shadow-sm transition-all disabled:opacity-50 text-white ${
+            className={`flex items-center gap-2 font-bold text-xs px-6 py-3 rounded-lg shadow-sm transition-all disabled:opacity-50 text-white ${
               isDemo
                 ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
                 : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
@@ -340,10 +466,10 @@ export const NewSimulation: React.FC = () => {
               {submitting
                 ? isDemo
                   ? 'Loading Demo Experiment...'
-                  : 'Executing NS-2 Engine...'
+                  : 'Executing Live NS-2 Engine...'
                 : isDemo
                 ? '▶ Run Demo Experiment'
-                : '▶ Run NS-2 Simulation'}
+                : '▶ RUN LIVE NS-2 SIMULATION'}
             </span>
           </button>
         </div>

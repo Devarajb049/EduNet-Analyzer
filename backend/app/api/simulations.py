@@ -46,10 +46,12 @@ def trigger_simulation(
 
     # Initialize in-memory status
     active_simulations[exp.id] = {
-        "status": "PENDING",
-        "progress_percent": 5,
-        "current_stage": "PREPARING",
-        "stage_message": "Simulation queued. Initializing parameters...",
+        "status": "preparing",
+        "progress": 10,
+        "progress_percent": 10,
+        "current_stage": "preparing",
+        "message": f"Simulation queued: {exp.exp_code}",
+        "stage_message": "Preparing Simulation",
         "logs": [f"Created experiment record {exp.exp_code}"],
         "error": None
     }
@@ -60,10 +62,13 @@ def trigger_simulation(
     return SimulationStatusResponse(
         id=exp.id,
         exp_code=exp.exp_code,
-        status="PENDING",
-        progress_percent=5,
-        current_stage="PREPARING",
-        stage_message="Simulation queued. Initializing parameters...",
+        experiment_id=exp.exp_code,
+        status="preparing",
+        progress=10,
+        progress_percent=10,
+        current_stage="preparing",
+        message=f"Simulation queued: {exp.exp_code}",
+        stage_message="Preparing Simulation",
         logs=active_simulations[exp.id]["logs"],
         error=None,
         result=None
@@ -99,9 +104,12 @@ def get_simulation_status(id: int, db: Session = Depends(get_db)):
         return SimulationStatusResponse(
             id=exp.id,
             exp_code=exp.exp_code,
+            experiment_id=exp.exp_code,
             status=state["status"],
+            progress=state.get("progress", state["progress_percent"]),
             progress_percent=state["progress_percent"],
             current_stage=state["current_stage"],
+            message=state.get("message", state["stage_message"]),
             stage_message=state["stage_message"],
             logs=state["logs"],
             error=state.get("error"),
@@ -109,14 +117,17 @@ def get_simulation_status(id: int, db: Session = Depends(get_db)):
         )
 
     # If completed and not in active memory
-    progress = 100 if exp.status == "COMPLETED" else 0
+    progress = 100 if exp.status in ["COMPLETED", "completed"] else 0
     return SimulationStatusResponse(
         id=exp.id,
         exp_code=exp.exp_code,
-        status=exp.status,
+        experiment_id=exp.exp_code,
+        status=exp.status.lower(),
+        progress=progress,
         progress_percent=progress,
-        current_stage="COMPLETED" if exp.status == "COMPLETED" else exp.status,
-        stage_message="Simulation completed." if exp.status == "COMPLETED" else f"Status: {exp.status}",
+        current_stage="completed" if progress == 100 else exp.status.lower(),
+        message="Simulation completed." if progress == 100 else f"Status: {exp.status}",
+        stage_message="Completed" if progress == 100 else f"Status: {exp.status}",
         logs=[f"Simulation {exp.exp_code} status: {exp.status}"],
         error=None,
         result=res_resp

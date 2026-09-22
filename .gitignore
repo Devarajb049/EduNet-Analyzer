@@ -33,10 +33,14 @@ backend/*.db-wal
 backend/*.db-journal
 
 
-# Generated simulation trace files
+# Generated simulation trace & script files
 *.tr
 *.nam
 simulation/traces/*.tr
+simulation/traces/*.nam
+simulation/generated/*.tcl
+!simulation/generated/.gitkeep
+!simulation/traces/.gitkeep
 backend/app/traces/*.tr
 
 # Logs & Environment

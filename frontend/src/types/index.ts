@@ -47,6 +47,8 @@ export interface SimulationConfig {
   data_rate: string;
   simulation_time: number;
   experiment_type: string;
+  packet_size?: number;
+  window_size?: number;
   force_demo?: boolean;
 }
 
@@ -103,9 +105,12 @@ export interface ComparisonResponse {
 export interface SimulationStatusResponse {
   id: number;
   exp_code: string;
-  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  experiment_id?: string;
+  status: string;
+  progress?: number;
   progress_percent: number;
   current_stage: string;
+  message?: string;
   stage_message: string;
   logs: string[];
   error?: string | null;
