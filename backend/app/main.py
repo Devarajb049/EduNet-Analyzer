@@ -2,6 +2,8 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .database import engine, Base, SessionLocal
 from .models import Experiment
@@ -33,10 +35,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for frontend development
+# Enable CORS (support CORS_ORIGINS env var or wildcard by default)
+cors_env = os.getenv("CORS_ORIGINS", "*")
+if cors_env.strip() == "*":
+    origins = ["*"]
+else:
+    origins = [orig.strip() for orig in cors_env.split(",") if orig.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,6 +65,41 @@ def health_check():
         "version": "1.0.0"
     }
 
+# Static file serving & SPA Fallback for production deployment
+STATIC_DIR = os.getenv("STATIC_DIR")
+if not STATIC_DIR:
+    possible_paths = [
+        # In unified container or standard repo layout where frontend dist is compiled
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend", "dist"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static"),
+        "/app/frontend/dist"
+    ]
+    for p in possible_paths:
+        if os.path.exists(p) and os.path.isdir(p):
+            STATIC_DIR = p
+            break
+
+if STATIC_DIR and os.path.exists(STATIC_DIR):
+    assets_dir = os.path.join(STATIC_DIR, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Allow API routes to be handled by routers
+        if full_path.startswith("api/"):
+            return {"error": "API route not found", "path": full_path}
+        file_path = os.path.join(STATIC_DIR, full_path)
+        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        index_path = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        return {"error": "Frontend build not found", "path": full_path}
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    uvicorn.run("backend.app.main:app", host=host, port=port, reload=True)

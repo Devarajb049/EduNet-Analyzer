@@ -5,6 +5,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: edunet_backend
     ports:
       - "8000:8000"
     volumes:
@@ -12,14 +13,25 @@ services:
       - ./reports:/app/reports
     environment:
       - PYTHONUNBUFFERED=1
+      - CORS_ORIGINS=*
+      - PORT=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: edunet_frontend
     ports:
-      - "5173:5173"
+      - "80:80"
+      - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped

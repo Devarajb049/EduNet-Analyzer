@@ -18,6 +18,7 @@
 [✨ Live NS-2 Pipeline](#-live-ns-2-simulation-pipeline) •
 [📊 Dual-Mode Architecture](#-demo-mode-vs-live-ns-2-mode) •
 [🚀 Quick Start](#-quick-start-guide) •
+[🚢 Production Deployment](#-production-deployment) •
 [🐧 WSL NS-2 Setup](#-wsl-ns-2-setup-guide) •
 [📡 API Reference](#-api-specification) •
 [🎓 Academic Alignment](#-academic-course-alignment)
@@ -157,6 +158,26 @@ npm run dev
 
 Visit the application in your browser at:  
 👉 **`http://localhost:5173`**
+
+---
+
+## 🚢 Production Deployment
+
+EduNet Analyzer is production-ready for deployment to **[Voroa](https://app.getvoroa.com/new/choose)**, **Docker**, and cloud providers:
+
+### 1. Deploy on Voroa (`app.getvoroa.com`)
+1. Go to **[https://app.getvoroa.com/new/choose](https://app.getvoroa.com/new/choose)**
+2. Select **Docker Service** and connect repository `Devarajb049/EduNet-Analyzer`.
+3. Set **Dockerfile Path**: `./Dockerfile` and **Port**: `8000`.
+4. Deploy! Live discrete-event NS-2 simulation + bundled React UI will run in a single low-latency container.
+
+### 2. Multi-Container Docker Compose
+```bash
+docker-compose up -d --build
+```
+Access at `http://localhost` (or `http://localhost:5173`).
+
+*(See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions and environment variables).*
 
 ---
 

@@ -170,8 +170,11 @@ export const ModeSelector: React.FC<{ className?: string; compact?: boolean }> =
 /**
  * Reusable Mode Badge
  */
-export const ModeBadge: React.FC<{ isDemo: boolean; className?: string }> = ({ isDemo, className = '' }) => {
-  if (isDemo) {
+export const ModeBadge: React.FC<{ isDemo?: boolean; className?: string }> = ({ isDemo, className = '' }) => {
+  const { isDemo: contextIsDemo } = useSimulationMode();
+  const effectiveIsDemo = isDemo !== undefined ? isDemo : contextIsDemo;
+
+  if (effectiveIsDemo) {
     return (
       <span
         className={`inline-flex items-center gap-1 font-mono font-bold text-[10px] uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 ${className}`}

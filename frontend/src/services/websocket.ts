@@ -4,6 +4,9 @@
  */
 
 export function getWebSocketBaseUrl(): string {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
   const loc = window.location;
   const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
   // In development, Vite runs on 5173, backend on 8000

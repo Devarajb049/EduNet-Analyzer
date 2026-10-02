@@ -12,9 +12,9 @@ from sqlalchemy.orm import Session
 from ..models import Experiment, Result
 from .trace_parser import parse_ns2_trace_file
 
-# Simulation directories placed at project root
+# Simulation directories placed at project root or configured via environment variable
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-SIMULATION_DIR = os.path.join(ROOT_DIR, "simulation")
+SIMULATION_DIR = os.getenv("SIMULATION_DIR") or os.path.join(ROOT_DIR, "simulation")
 TCL_DIR = os.path.join(SIMULATION_DIR, "generated")
 TRACES_DIR = os.path.join(SIMULATION_DIR, "traces")
 os.makedirs(TCL_DIR, exist_ok=True)

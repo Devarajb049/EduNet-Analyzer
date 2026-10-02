@@ -1,0 +1,13 @@
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+env
+*.log
+edunet.db-shm
+edunet.db-wal
+.coverage
+htmlcov

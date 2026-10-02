@@ -123,6 +123,8 @@ export interface SystemStatusResponse {
   execution_mode: string;
   wsl_detected: boolean;
   wsl_distro?: string | null;
+  wsl_available?: boolean;
+  ubuntu_distro_found?: boolean;
   python_version: string;
   db_connected: boolean;
   database_path: string;
