@@ -435,17 +435,17 @@ export const NewSimulation: React.FC = () => {
         </div>
 
         {/* Topology Summary Preview */}
-        <div className="bg-slate-50 p-5 rounded-xl border border-[#E2E8F0] flex items-center justify-between">
+        <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-[#E2E8F0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Network className="w-6 h-6 text-blue-600 flex-shrink-0" />
             <div>
               <h4 className="text-xs font-bold text-[#0F172A]">Simulated NS-2 Topology Plan</h4>
-              <p className="text-[11px] text-[#64748B]">
+              <p className="text-[11px] text-[#64748B] break-words">
                 {formData.users} Student Nodes (10Mb, 5ms) ➔ Access Router R1 ➔ [{formData.data_rate}, 20ms, {formData.experiment_type === 'Leaky Bucket' ? 'RED' : 'DropTail'}] ➔ Core Router R2 ➔ LMS Server (100Mb)
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded whitespace-nowrap">
+          <span className="text-xs font-mono font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded whitespace-nowrap self-start sm:self-auto">
             {formData.protocol} • {formData.simulation_time}s
           </span>
         </div>
@@ -455,7 +455,7 @@ export const NewSimulation: React.FC = () => {
           <button
             type="submit"
             disabled={submitting}
-            className={`flex items-center gap-2 font-bold text-xs px-6 py-3 rounded-lg shadow-sm transition-all disabled:opacity-50 text-white ${
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 font-bold text-xs px-6 py-3 rounded-lg shadow-sm transition-all disabled:opacity-50 text-white ${
               isDemo
                 ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
                 : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'

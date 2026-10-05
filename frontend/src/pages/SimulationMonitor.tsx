@@ -119,24 +119,26 @@ export const SimulationMonitor: React.FC = () => {
   const isCompleted = statusData?.status?.toLowerCase() === 'completed';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
       {/* Simulation Selector if multiple available */}
-      <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#E2E8F0] shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
-          <Activity className="w-5 h-5 text-blue-600" />
-          <div>
-            <h2 className="text-sm font-bold text-[#0F172A]">Real-Time Simulation Monitor</h2>
-            <p className="text-xs text-[#64748B]">Monitoring execution pipeline, NS-2 subprocess, and trace processing</p>
+          <div className="p-2 rounded-lg bg-blue-50 text-blue-600 flex-shrink-0">
+            <Activity className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-[#0F172A] truncate">Real-Time Simulation Monitor</h2>
+            <p className="text-xs text-[#64748B] truncate">Monitoring execution pipeline, NS-2 subprocess, and trace processing</p>
           </div>
         </div>
 
         {experiments.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-[#64748B]">Monitor Experiment:</span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="text-xs font-semibold text-[#64748B] whitespace-nowrap">Monitor Experiment:</span>
             <select
               value={simId || ''}
               onChange={(e) => setSimId(parseInt(e.target.value, 10))}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white font-mono focus:ring-2 focus:ring-blue-500"
+              className="text-xs px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white font-mono focus:ring-2 focus:ring-blue-500 w-full sm:w-auto max-w-full truncate"
             >
               {experiments.map((exp) => (
                 <option key={exp.id} value={exp.id}>
@@ -149,9 +151,9 @@ export const SimulationMonitor: React.FC = () => {
       </div>
 
       {isFailed && (
-        <div className="p-5 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs space-y-2">
+        <div className="p-4 sm:p-5 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs space-y-3">
           <div className="flex items-center gap-2 font-bold text-rose-950 text-sm">
-            <AlertCircle className="w-5 h-5 text-rose-600" />
+            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
             <span>
               {statusData?.error?.includes('UNAVAILABLE')
                 ? '❌ LIVE NS-2 SIMULATION UNAVAILABLE'
@@ -160,10 +162,10 @@ export const SimulationMonitor: React.FC = () => {
                 : '❌ Simulation Failed'}
             </span>
           </div>
-          <p className="font-semibold text-rose-900 whitespace-pre-line">
+          <p className="font-semibold text-rose-900 whitespace-pre-line break-words">
             {statusData?.error || 'The NS-2 simulation did not complete successfully. No simulated results were generated.'}
           </p>
-          <div className="pt-2 flex items-center gap-3">
+          <div className="pt-1 flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => {
                 setMode('demo');
@@ -174,7 +176,7 @@ export const SimulationMonitor: React.FC = () => {
               Use Demo Mode (Sample Data)
             </button>
             <Link
-              to="/settings"
+              to="/settings/ns2"
               className="px-3.5 py-2 bg-white border border-rose-300 hover:bg-rose-100 text-rose-900 font-semibold rounded-lg text-xs transition-colors"
             >
               WSL NS-2 Configuration Guide
@@ -184,15 +186,15 @@ export const SimulationMonitor: React.FC = () => {
       )}
 
       {isCompleted && (
-        <div className="p-5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs space-y-2">
-          <div className="flex items-center justify-between">
+        <div className="p-4 sm:p-5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 font-bold text-emerald-950 text-sm">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
               <span>Simulation Completed Successfully</span>
             </div>
             <Link
               to={`/experiments/${simId}`}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs w-full sm:w-auto"
             >
               <span>View Results</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -212,8 +214,8 @@ export const SimulationMonitor: React.FC = () => {
       )}
 
       {/* Progress & Stage Stepper */}
-      <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] shadow-xs space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-[#E2E8F0] shadow-xs space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="text-[11px] font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
               {statusData?.exp_code || `EXP-${simId}`}
@@ -222,7 +224,7 @@ export const SimulationMonitor: React.FC = () => {
               {statusData?.stage_message || 'Initializing pipeline...'}
             </h3>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <span className="text-2xl font-bold font-mono text-blue-600">
               {statusData?.progress_percent ?? 0}%
             </span>
@@ -238,28 +240,30 @@ export const SimulationMonitor: React.FC = () => {
           />
         </div>
 
-        {/* Multi-Stage Stepper */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 pt-2">
+        {/* Multi-Stage Stepper - Responsive Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 pt-1">
           {STAGES.map((stage, idx) => {
             const Icon = stage.icon;
-            const isCompleted = currentStageIndex > idx || statusData?.status === 'COMPLETED';
-            const isCurrent = currentStageIndex === idx && statusData?.status !== 'COMPLETED';
+            const isStageDone = currentStageIndex > idx || statusData?.status === 'COMPLETED';
+            const isStageCurrent = currentStageIndex === idx && statusData?.status !== 'COMPLETED';
 
             return (
               <div
                 key={stage.key}
-                className={`p-3 rounded-lg border text-center transition-all ${
-                  isCompleted
+                className={`p-2.5 sm:p-3 rounded-lg border text-center transition-all flex flex-col items-center justify-center min-h-[75px] sm:min-h-[85px] ${
+                  isStageDone
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : isCurrent
+                    : isStageCurrent
                     ? 'bg-blue-50 border-blue-400 text-blue-800 shadow-xs ring-2 ring-blue-200'
                     : 'bg-slate-50 border-slate-200 text-slate-400'
                 }`}
               >
-                <div className="flex justify-center mb-1.5">
-                  <Icon className={`w-5 h-5 ${isCurrent ? 'animate-bounce text-blue-600' : ''}`} />
+                <div className="flex justify-center mb-1">
+                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isStageCurrent ? 'animate-bounce text-blue-600' : ''}`} />
                 </div>
-                <div className="text-[10px] font-bold uppercase tracking-wider">{stage.label}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider leading-tight">
+                  {stage.label}
+                </div>
               </div>
             );
           })}
@@ -268,21 +272,23 @@ export const SimulationMonitor: React.FC = () => {
 
       {/* Real-time Console Log Stream */}
       <div className="bg-[#0F172A] text-slate-200 rounded-xl border border-slate-800 shadow-lg overflow-hidden font-mono text-xs">
-        <div className="bg-[#1E293B] px-4 py-2.5 border-b border-slate-700 flex items-center justify-between">
+        <div className="bg-[#1E293B] px-3 sm:px-4 py-2 sm:py-2.5 border-b border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 sm:gap-2">
           <div className="flex items-center gap-2">
-            <Terminal className="w-4 h-4 text-emerald-400" />
-            <span className="text-[11px] font-semibold text-slate-300">Simulation Console Output & Execution Logs</span>
+            <Terminal className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-slate-300 truncate">
+              Simulation Console Output & Execution Logs
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${isLiveWs ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`}></span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-slate-400 whitespace-nowrap">
               {isLiveWs ? 'WebSocket Live Stream' : 'Live Polling Mode'}
             </span>
           </div>
         </div>
-        <div ref={logContainerRef} className="p-4 h-64 overflow-y-auto space-y-1.5 scroll-smooth">
+        <div ref={logContainerRef} className="p-3 sm:p-4 h-56 sm:h-72 overflow-y-auto space-y-1.5 scroll-smooth text-[11px] sm:text-xs">
           {statusData?.logs.map((log, index) => (
-            <div key={index} className="leading-relaxed">
+            <div key={index} className="leading-relaxed break-all sm:break-normal">
               <span className="text-emerald-400 font-bold mr-2">&gt;</span>
               <span>{log}</span>
             </div>
@@ -295,9 +301,9 @@ export const SimulationMonitor: React.FC = () => {
 
       {/* Completion Action Card */}
       {statusData?.status === 'COMPLETED' && (
-        <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+        <div className="p-4 sm:p-6 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-8 h-8 text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-600 flex-shrink-0" />
             <div>
               <h4 className="text-sm font-bold text-emerald-900">Simulation & Trace Processing Complete!</h4>
               <p className="text-xs text-emerald-700">
@@ -307,7 +313,7 @@ export const SimulationMonitor: React.FC = () => {
           </div>
           <Link
             to={`/experiments/${simId}`}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all"
+            className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all w-full sm:w-auto"
           >
             <span>View Full Results & Analytics</span>
             <ArrowRight className="w-4 h-4" />
@@ -317,3 +323,5 @@ export const SimulationMonitor: React.FC = () => {
     </div>
   );
 };
+
+export default SimulationMonitor;

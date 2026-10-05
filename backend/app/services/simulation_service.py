@@ -80,30 +80,58 @@ def to_wsl_path(win_path: str) -> str:
         return f"/mnt/{drive}{clean[2:]}"
     return clean
 
+_cached_ns_info: Optional[Dict[str, Any]] = None
+
 def check_ns2_installation() -> Dict[str, Any]:
     """Check if NS-2 is available natively or inside WSL."""
+    global _cached_ns_info
+    if _cached_ns_info and _cached_ns_info.get("installed"):
+        return _cached_ns_info
+
     # 1. Native check
     native_ns = shutil.which("ns")
     if native_ns:
-        return {"installed": True, "mode": "native", "path": native_ns, "cmd": ["ns"]}
+        _cached_ns_info = {"installed": True, "mode": "native", "path": native_ns, "cmd": ["ns"]}
+        return _cached_ns_info
 
     # 2. WSL check
     wsl = shutil.which("wsl")
     if wsl:
+        # Check Ubuntu distro
         try:
             res = subprocess.run(
                 ["wsl", "-d", "Ubuntu", "--", "which", "ns"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=15
             )
             if res.returncode == 0 and res.stdout.strip():
-                return {
+                _cached_ns_info = {
                     "installed": True,
                     "mode": "wsl",
                     "path": res.stdout.strip(),
                     "cmd": ["wsl", "-d", "Ubuntu", "--", "ns"]
                 }
+                return _cached_ns_info
+        except Exception:
+            pass
+
+        # Check default WSL distro
+        try:
+            res = subprocess.run(
+                ["wsl", "--", "which", "ns"],
+                capture_output=True,
+                text=True,
+                timeout=15
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                _cached_ns_info = {
+                    "installed": True,
+                    "mode": "wsl",
+                    "path": res.stdout.strip(),
+                    "cmd": ["wsl", "--", "ns"]
+                }
+                return _cached_ns_info
         except Exception:
             pass
 
@@ -132,16 +160,12 @@ def generate_tcl_script(
     tcl_path = os.path.join(TCL_DIR, tcl_filename)
     tr_filename = f"{code}.tr"
     tr_path = os.path.join(TRACES_DIR, tr_filename)
-    nam_filename = f"{code}.nam"
-    nam_path = os.path.join(TRACES_DIR, nam_filename)
 
     # Determine POSIX path if running in WSL
     if is_wsl:
         tr_target = to_wsl_path(tr_path)
-        nam_target = to_wsl_path(nam_path)
     else:
         tr_target = tr_path.replace("\\", "/")
-        nam_target = nam_path.replace("\\", "/")
 
     # Clean bandwidth string, e.g. "1 Mbps" -> "1Mb"
     bw = bottleneck_bw.replace(" ", "").replace("ps", "").replace("bps", "b")
@@ -184,8 +208,6 @@ def generate_tcl_script(
         "",
         f'set tracefile [open "{tr_target}" w]',
         "$ns trace-all $tracefile",
-        f'set namfile [open "{nam_target}" w]',
-        "$ns namtrace-all $namfile",
         "",
         "# 1. Create Student Nodes (0 to num_students - 1)",
         f"for {{set i 0}} {{$i < {users}}} {{incr i}} {{",
@@ -211,7 +233,7 @@ def generate_tcl_script(
         "# 3. Transport Agents and Application Workload Setup",
     ]
 
-    if proto == "TCP":
+    if "TCP" in proto:
         lines.extend([
             f"for {{set i 0}} {{$i < {users}}} {{incr i}} {{",
             "    set tcp($i) [new Agent/TCP/Newreno]",
@@ -221,12 +243,26 @@ def generate_tcl_script(
             "    set sink($i) [new Agent/TCPSink]",
             "    $ns attach-agent $server $sink($i)",
             "    $ns connect $tcp($i) $sink($i)",
-            "    set ftp($i) [new Application/FTP]",
-            "    $ftp($i) attach-agent $tcp($i)",
-            f"    $ns at [expr 0.1 + ($i * 0.05)] \"$ftp($i) start\"",
-            f"    $ns at {sim_time - 0.5} \"$ftp($i) stop\"",
-            "}",
         ])
+        if "CBR" in traffic_level.upper() or "CBR" in proto or "CBR" in experiment_type.upper():
+            cbr_rate_str = f"{round(rate_val * 1000)}Kb" if rate_val < 1.0 else f"{per_user_rate_mb}Mb"
+            lines.extend([
+                "    set cbr($i) [new Application/Traffic/CBR]",
+                f"    $cbr($i) set packetSize_ {packet_size}",
+                f"    $cbr($i) set rate_ {cbr_rate_str}",
+                "    $cbr($i) attach-agent $tcp($i)",
+                f"    $ns at [expr 0.1 + ($i * 0.05)] \"$cbr($i) start\"",
+                f"    $ns at {sim_time - 0.5} \"$cbr($i) stop\"",
+                "}",
+            ])
+        else:
+            lines.extend([
+                "    set ftp($i) [new Application/FTP]",
+                "    $ftp($i) attach-agent $tcp($i)",
+                f"    $ns at [expr 0.1 + ($i * 0.05)] \"$ftp($i) start\"",
+                f"    $ns at {sim_time - 0.5} \"$ftp($i) stop\"",
+                "}",
+            ])
     else: # UDP / CBR
         lines.extend([
             f"for {{set i 0}} {{$i < {users}}} {{incr i}} {{",
@@ -249,10 +285,9 @@ def generate_tcl_script(
         "# 4. Finish Procedure",
         f"$ns at {sim_time} \"finish\"",
         "proc finish {} {",
-        "    global ns tracefile namfile",
+        "    global ns tracefile",
         "    $ns flush-trace",
         "    close $tracefile",
-        "    close $namfile",
         "    exit 0",
         "}",
         "",
@@ -441,6 +476,8 @@ async def run_simulation_task(experiment_id: int, db_factory):
         active_simulations[experiment_id]["current_stage"] = "running"
         active_simulations[experiment_id]["status"] = "running"
         active_simulations[experiment_id]["stage_message"] = "Running Simulation"
+        exp.status = "running"
+        db.commit()
 
         if not exp.is_demo:
             active_simulations[experiment_id]["message"] = f"Starting NS-2 ({ns_info['mode']}) for {exp.simulation_time}s simulation..."
@@ -448,7 +485,8 @@ async def run_simulation_task(experiment_id: int, db_factory):
 
             if ns_info["mode"] == "wsl":
                 wsl_tcl = to_wsl_path(tcl_script)
-                cmd = ["wsl", "-d", "Ubuntu", "--", "bash", "-c", f'ns "{wsl_tcl}"']
+                # Pass wsl_tcl directly to avoid shell quote stripping on paths with spaces
+                cmd = ["wsl", "-d", "Ubuntu", "--", "ns", wsl_tcl]
             else:
                 cmd = ["ns", tcl_script]
 
@@ -463,11 +501,21 @@ async def run_simulation_task(experiment_id: int, db_factory):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
-                stdout, stderr = await proc.communicate()
+                
+                # Simulation duration + buffer safety timeout
+                sim_timeout = max(float(exp.simulation_time) * 1.5, 90.0)
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=sim_timeout)
+                except asyncio.TimeoutError:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+                    raise TimeoutError(f"NS-2 execution timed out after {int(sim_timeout)}s")
 
                 if proc.returncode != 0:
                     err_text = stderr.decode('utf-8', errors='ignore')[:300]
-                    err_msg = "❌ Simulation Failed: The NS-2 simulation did not complete successfully. No simulated results were generated."
+                    err_msg = f"❌ Simulation Failed: NS-2 returned exit code {proc.returncode}."
                     active_simulations[experiment_id]["status"] = "failed"
                     active_simulations[experiment_id]["current_stage"] = "failed"
                     active_simulations[experiment_id]["error"] = err_msg

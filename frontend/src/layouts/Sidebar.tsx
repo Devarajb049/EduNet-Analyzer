@@ -17,7 +17,8 @@ import {
   Repeat,
   Sliders,
   Terminal,
-  Zap
+  Zap,
+  X
 } from 'lucide-react';
 import { api } from '../services/api';
 import { SystemStatusResponse } from '../types';
@@ -89,24 +90,51 @@ const navSections: NavSection[] = [
   },
 ];
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const [status, setStatus] = useState<SystemStatusResponse | null>(null);
-  const { isDemo, isLive } = useSimulationMode();
+  const { isDemo } = useSimulationMode();
 
   useEffect(() => {
     api.getSystemStatus().then(setStatus).catch(() => null);
   }, []);
 
-  return (
-    <aside className="w-64 bg-white border-r border-[#E2E8F0] flex flex-col h-screen sticky top-0 select-none">
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  const renderNavContent = (isMobile: boolean = false) => (
+    <>
       {/* Brand Header */}
       <div className="p-4 border-b border-[#E2E8F0]">
-        <div className="flex items-center gap-3">
-          <AppLogo className="w-9 h-9 shadow-sm shadow-blue-200 flex-shrink-0" />
-          <div>
-            <h1 className="font-bold text-sm text-[#0F172A] tracking-tight leading-none">EduNet Analyzer</h1>
-            <p className="text-[10px] text-[#64748B] mt-1 font-medium">E-Learning Network Lab</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AppLogo className="w-9 h-9 shadow-sm shadow-blue-200 flex-shrink-0" />
+            <div>
+              <h1 className="font-bold text-sm text-[#0F172A] tracking-tight leading-none">EduNet Analyzer</h1>
+              <p className="text-[10px] text-[#64748B] mt-1 font-medium">E-Learning Network Lab</p>
+            </div>
           </div>
+          {isMobile && onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
         <div className="mt-2.5 text-[10px] text-blue-700 bg-blue-50 px-2 py-1 rounded font-medium border border-blue-100 flex items-center justify-between">
           <div className="flex items-center gap-1.5 truncate">
@@ -135,15 +163,19 @@ export const Sidebar: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   end={item.path === '/'}
+                  onClick={() => {
+                    if (isMobile && onClose) onClose();
+                  }}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${isActive
-                      ? 'bg-blue-50 text-blue-700 font-semibold shadow-xs'
-                      : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A]'
+                    `flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700 font-semibold shadow-xs'
+                        : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A]'
                     }`
                   }
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{item.label}</span>
                   </div>
                   {item.badge && (
@@ -183,6 +215,34 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sticky Sidebar */}
+      <aside className="hidden lg:flex w-64 bg-white border-r border-[#E2E8F0] flex-col h-screen sticky top-0 select-none flex-shrink-0 z-30">
+        {renderNavContent(false)}
+      </aside>
+
+      {/* Mobile Drawer Backdrop & Container */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+
+          {/* Slide-in Drawer */}
+          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white flex flex-col h-full shadow-2xl z-50 select-none animate-in slide-in-from-left duration-200">
+            {renderNavContent(true)}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
+
+export default Sidebar;
