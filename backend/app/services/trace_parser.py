@@ -140,3 +140,124 @@ def parse_ns2_trace_file(
         "data_rate_kbps": throughput_kbps,
         "time_series": final_time_series
     }
+
+
+def parse_gbn_sequence_trace(
+    trace_path: str,
+    sender_node_id: int = 0,
+    dest_node_id: int = 2,
+    max_points: int = 350
+) -> Dict[str, Any]:
+    """
+    Parses NS-2 wired trace file (.tr) specifically for Go-Back-N analysis.
+    Extracts packet sequence number progressions, drops, and retransmissions.
+    """
+    if not os.path.exists(trace_path):
+        raise FileNotFoundError(f"Trace file not found at {trace_path}")
+
+    trace_points = []
+    seen_seqs = set()
+    retransmission_count = 0
+    packets_sent = 0
+    packets_received = 0
+    packets_dropped = 0
+
+    with open(trace_path, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) < 12:
+                continue
+
+            event = parts[0]
+            try:
+                time_sec = float(parts[1])
+                from_node = int(parts[2])
+                to_node = int(parts[3])
+                pkt_type = parts[4].lower()
+                seq_num = int(parts[10])
+            except (ValueError, IndexError):
+                continue
+
+            # Skip pure ACKs
+            if pkt_type == "ack":
+                continue
+
+            # Transmission at sender
+            if event == "+" and from_node == sender_node_id:
+                packets_sent += 1
+                is_retrans = seq_num in seen_seqs
+                if is_retrans:
+                    retransmission_count += 1
+                    evt_name = "retransmit"
+                else:
+                    seen_seqs.add(seq_num)
+                    evt_name = "send"
+
+                if len(trace_points) < max_points:
+                    trace_points.append({
+                        "time": round(time_sec, 4),
+                        "seq_num": seq_num,
+                        "event": evt_name,
+                        "is_retransmit": is_retrans
+                    })
+
+            # Drops on intermediate links
+            elif event == "d":
+                packets_dropped += 1
+                if len(trace_points) < max_points:
+                    trace_points.append({
+                        "time": round(time_sec, 4),
+                        "seq_num": seq_num,
+                        "event": "drop",
+                        "is_retransmit": False
+                    })
+
+            # Receive at destination
+            elif event == "r" and to_node == dest_node_id:
+                packets_received += 1
+
+    return {
+        "packets_sent": packets_sent,
+        "packets_received": packets_received,
+        "packets_dropped": packets_dropped,
+        "retransmissions": retransmission_count,
+        "trace_points": trace_points
+    }
+
+
+def parse_leaky_bucket_comparison(
+    unshaped_trace_path: str,
+    shaped_trace_path: str,
+    server_node_id: int,
+    simulation_duration: float
+) -> Dict[str, Any]:
+    """
+    Parses paired NS-2 traces for unshaped bursty traffic vs Leaky Bucket shaped traffic.
+    """
+    unshaped = parse_ns2_trace_file(unshaped_trace_path, server_node_id, simulation_duration)
+    shaped = parse_ns2_trace_file(shaped_trace_path, server_node_id, simulation_duration)
+
+    unshaped_ts = {p["time"]: p for p in unshaped.get("time_series", [])}
+    shaped_ts = {p["time"]: p for p in shaped.get("time_series", [])}
+
+    all_times = sorted(list(set(list(unshaped_ts.keys()) + list(shaped_ts.keys()))))
+    comparison_series = []
+    for t in all_times:
+        u_p = unshaped_ts.get(t, {"throughput_kbps": 0.0, "packets_dropped": 0})
+        s_p = shaped_ts.get(t, {"throughput_kbps": 0.0, "packets_dropped": 0})
+        comparison_series.append({
+            "time": t,
+            "unshaped_throughput": u_p.get("throughput_kbps", 0.0),
+            "shaped_throughput": s_p.get("throughput_kbps", 0.0),
+            "unshaped_drops": u_p.get("packets_dropped", 0),
+            "shaped_drops": s_p.get("packets_dropped", 0)
+        })
+
+    return {
+        "unshaped_throughput_kbps": unshaped.get("throughput_kbps", 0.0),
+        "shaped_throughput_kbps": shaped.get("throughput_kbps", 0.0),
+        "unshaped_loss_percent": unshaped.get("packet_loss_percent", 0.0),
+        "shaped_loss_percent": shaped.get("packet_loss_percent", 0.0),
+        "comparison_series": comparison_series
+    }
+

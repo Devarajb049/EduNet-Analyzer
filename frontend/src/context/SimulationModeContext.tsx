@@ -20,10 +20,10 @@ const LEGACY_STORAGE_KEY = 'edunet_analyzer_mode';
 export const SimulationModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setModeState] = useState<SimulationMode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (saved === 'realtime' || saved === 'LIVE' || saved === 'live') {
-      return 'realtime';
+    if (saved === 'demo' || saved === 'DEMO') {
+      return 'demo';
     }
-    return 'demo';
+    return 'realtime'; // Live NS-2 Mode is the primary default
   });
 
   const [modeVersion, setModeVersion] = useState<number>(0);

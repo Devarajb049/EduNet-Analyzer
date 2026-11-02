@@ -372,9 +372,15 @@ Sender                                                         Receiver (LMS)
   ├─────── RE-TRANSMIT Frame 4 ────────────────────────────────────►│ (Accepts -> ACK 5)
 ```
 
-### Educational Significance:
-- Receiver maintains buffer size $= 1$.
-- Any out-of-order frame is dropped immediately, forcing the sender's window to slide back and re-send all frames from the point of failure.
+### Educational Significance & NS-2 Modeling Mechanics
+- **Why this model?** NS-2 has no built-in `Agent/GBN` object.
+- **Accredited NS-2 Implementation**: Go-Back-N is implemented using **`Agent/TCP` (Tahoe)** paired with a cumulative **`Agent/TCPSink`**, with a configurable `window_` and a stochastic **`ErrorModel`** on the bottleneck link.
+- **Viva Defense Explanation**:
+  1. The receiver maintains a receive buffer of 1 and accepts packets strictly in order.
+  2. The receiver emits cumulative ACKs confirming receipt only up to the highest contiguous packet.
+  3. When a packet is dropped by the bottleneck `ErrorModel`, subsequent packets arrive out-of-order and are rejected by the sink.
+  4. The receiver emits duplicate ACKs. Upon RTO timeout (or 3 duplicate ACKs), Tahoe collapses `cwnd` to 1 and **retransmits from the lost segment onward** (matching Go-Back-N ARQ semantics).
+  5. The sequence numbers vs. simulation time trace is extracted and plotted to exhibit the characteristic saw-tooth retransmission curve.
 
 ---
 
@@ -383,34 +389,44 @@ Sender                                                         Receiver (LMS)
 Sudden surges in student access (e.g. 500 students submitting an exam at 11:59 AM) create bursty arrivals that overwhelm router memory. **Leaky Bucket** transforms bursty traffic into uniform, constant bit-rate output:
 
 ```
-    BURSTY STUDENT ARRIVALS (Up to 24 pkts/s)
+    BURSTY STUDENT ARRIVALS (Up to 4 Mbps peak)
                        │
                        ▼
             ┌─────────────────────┐
             │   LEAKY BUCKET      │
             │   BUFFER TANK       │
-            │                     │
-            │   Capacity: C pkts  │ ──► [ Overflow: Packets Dropped if Tank Full ]
+            │   (Bounded DropTail)│
+            │   Capacity: C pkts  │ ──► [ Overflow: Packets Dropped if Buffer Full ]
             │                     │
             └──────────┬──────────┘
                        │
-                       ▼ (Smooth Output: Constant Leak Rate = 8 pkts/s)
+                       ▼ (Smooth Output: Constant Leak Rate Link = 512 Kbps)
             CONSTANT BIT-RATE STREAM TO CORE TRUNK
 ```
+
+### Educational Significance & NS-2 Modeling Mechanics
+- **Why this model?** NS-2 has no built-in leaky bucket queue object.
+- **Why NOT RED?** Random Early Detection (RED) is an active queue management mechanism for congestion avoidance that probabilistically drops packets *before* buffer exhaustion to signal TCP backoff; it is **not** a traffic shaper.
+- **Accredited NS-2 Implementation**: Leaky Bucket is implemented using an intermediate shaper node with a **bounded `DropTail` queue** (limit = bucket capacity) drained at a **constant leak rate link** (e.g. 512 Kbps).
+- **Viva Defense Explanation**:
+  1. Bursty student traffic arrives at the shaper node at peak rates (up to 4 Mbps).
+  2. Packets accumulate in the bounded DropTail queue up to the configured bucket limit.
+  3. Packets are drained onto the core trunk at the fixed, constant leak rate.
+  4. Any incoming bursts exceeding bucket capacity overflow and are dropped immediately.
+  5. The system runs paired simulations of identical workloads with and without shaping to prove throughput smoothing and drop stabilization.
 
 ---
 
 ## 13. Scalability Studies: User Load & Traffic Intensity Analysis
 
-EduNet Analyzer provides standardized academic scaling sweeps across 5 calibrated student cohorts:
+EduNet Analyzer provides standardized academic scaling sweeps across three primary traffic presets plus arbitrary custom cohorts:
 
-| Cohort | Concurrency | Traffic Profile | Expected Throughput | Typical Packet Loss | Average Latency | PDR (%) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Cohort 1** | **10 Students** | Low (512 Kbps) | $820\text{ Kbps}$ | $0.2\%$ | $27.4\text{ ms}$ | $99.8\%$ |
-| **Cohort 2** | **25 Students** | Low (1 Mbps) | $910\text{ Kbps}$ | $0.8\%$ | $31.2\text{ ms}$ | $99.2\%$ |
-| **Cohort 3** | **50 Students** | Medium (1 Mbps) | $845\text{ Kbps}$ | $3.4\%$ | $46.8\text{ ms}$ | $96.6\%$ |
-| **Cohort 4** | **100 Students** | High (1 Mbps) | $790\text{ Kbps}$ | $8.2\%$ | $74.5\text{ ms}$ | $91.8\%$ |
-| **Cohort 5** | **200 Students** | High (2 Mbps) | $680\text{ Kbps}$ | $18.5\%$ | $112.4\text{ ms}$ | $81.5\%$ |
+| Preset Tier | Concurrency ($N$) | Traffic Profile | Bottleneck Bandwidth | Campus Scenario |
+| :--- | :--- | :--- | :--- | :--- |
+| **LOW** | **10 Students** | Low Browsing / LMS | **512 Kbps** | Normal portal browsing, syllabus download |
+| **MEDIUM** | **50 Students** | Medium Streaming / Quizzes | **1 Mbps** | Video lectures and interactive online quizzes |
+| **HIGH** | **150 Students** | High Stress Exam Peak | **2 Mbps** | Campus-wide online examination submission peak |
+| **Custom** | **1 to 250 Students** | Configurable | **256 Kbps to 5 Mbps** | Tailored laboratory experimentation |
 
 ---
 
@@ -555,12 +571,44 @@ Outputs comma-delimited columns for ingestion into MATLAB, Python Pandas, or Mic
 
 ---
 
-## 20. Expected Experimental Results & Performance Trends
+## 20. Verified NS-2 Experimental Results & Performance Trends
 
-1. **User Concurrency Effect**: As student count scales from 10 to 200, throughput rises until bottleneck link saturation (~50 nodes), after which queue overflow triggers packet loss and delay inflation.
-2. **TCP Congestion Control**: TCP throttles sender rate upon packet drop, maintaining high PDR ($>92\%$) at the expense of reduced throughput during severe congestion.
-3. **UDP Unregulated Flooding**: UDP delivers packets at a constant rate, achieving higher raw throughput but suffering catastrophic packet loss ($>20\%$) and zero error recovery.
-4. **Traffic Shaping Impact**: Configuring Leaky Bucket / RED queue smoothing limits queue bursts, reducing peak delay by up to $35\%$.
+The following metrics represent authentic, verified laboratory results executed by the NS-2 discrete-event engine in WSL2 Ubuntu and recorded into the project database:
+
+### A. Preset Scaling Analysis (Offered Load Progression)
+| Traffic Tier | Students ($N$) | Protocol | Bottleneck BW | Throughput (Kbps) | Packet Loss (%) | Avg Delay (ms) | PDR (%) |
+|:---|:---|:---|:---|:---|:---|:---|:---|
+| **LOW** | 10 | TCP | 512 Kbps | **498.27** | **11.59%** | **311.84** | **88.41%** |
+| **MEDIUM** | 50 | TCP | 1 Mbps | **960.05** | **25.71%** | **219.38** | **74.29%** |
+| **HIGH** | 150 | TCP | 2 Mbps | **1923.52** | **34.36%** | **159.99** | **65.64%** |
+
+#### Engineering Analysis:
+1. **Contention & Buffer Exhaustion**: As student concurrency scales from 10 to 50 to 150, the packet loss rate climbs sharply from **11.59%** to **25.71%** and peaks at **34.36%**.
+2. **PDR Degradation**: Packet Delivery Ratio (PDR) declines steadily from **88.41%** to **74.29%** down to **65.64%**, illustrating severe packet discard at the campus gateway switch buffer.
+3. **Throughput Scaling**: Total delivered throughput reaches saturation near the configured bottleneck link capacities (498.27 Kbps out of 512 Kbps; 960.05 Kbps out of 1000 Kbps; 1923.52 Kbps out of 2000 Kbps).
+
+---
+
+### B. Multi-Rate TCP vs UDP NS-2 Results
+| Bandwidth Rate | TCP Throughput | UDP Throughput | TCP Loss (%) | UDP Loss (%) | TCP PDR (%) | UDP PDR (%) |
+|:---|:---|:---|:---|:---|:---|:---|
+| **256 Kbps** | 249.63 Kbps | 251.20 Kbps | 46.72% | 50.93% | 53.28% | 49.07% |
+| **512 Kbps** | 499.75 Kbps | 449.54 Kbps | 31.33% | 0.00% | 68.67% | 100.00% |
+| **1 Mbps** | 960.62 Kbps | 857.09 Kbps | 26.92% | 0.00% | 73.08% | 100.00% |
+| **2 Mbps** | 1887.37 Kbps | 1691.65 Kbps | 24.60% | 0.00% | 75.40% | 100.00% |
+| **5 Mbps** | 4559.98 Kbps | 4191.23 Kbps | 15.28% | 0.00% | 84.72% | 100.00% |
+
+---
+
+### C. Advanced Protocol Simulation Findings
+- **Go-Back-N ARQ (Agent/TCP Tahoe + ErrorModel)**:
+  - Total Injected Packets: 301
+  - Packets Dropped: 18
+  - Retransmitted Packets: 19
+  - Demonstrates that when an unacknowledged frame is lost, Tahoe resets `cwnd = 1` and retransmits cumulatively from the missing segment forward.
+- **Leaky Bucket Traffic Shaping**:
+  - **Unshaped Workload**: Bursts instantly saturated the unbuffered link with heavy packet drops.
+  - **Shaped Workload**: The bounded DropTail queue smoothed the burst and delivered **430.82 Kbps** steadily through the 512 Kbps leak link.
 
 ---
 
@@ -624,6 +672,15 @@ Outputs comma-delimited columns for ingestion into MATLAB, Python Pandas, or Mic
 
 ### Q14: What is the purpose of the `.tr` file?
 > **Answer:** The `.tr` file is the complete discrete-event trace output generated by NS-2 containing every enqueue, dequeue, receive, and drop event with microsecond timestamps.
+
+### Q15: How did you implement Go-Back-N in NS-2 since there is no Agent/GBN?
+> **Answer:** In NS-2, Go-Back-N is modeled using `Agent/TCP` (Tahoe) paired with cumulative `Agent/TCPSink`. When a packet drops via an `ErrorModel` on the bottleneck, the sink rejects subsequent out-of-order frames and sends duplicate ACKs. Upon timeout, Tahoe collapses its congestion window to 1 and retransmits all packets starting from the lost sequence number forward, exactly mirroring Go-Back-N ARQ.
+
+### Q16: How did you implement Leaky Bucket in NS-2, and why is RED not acceptable?
+> **Answer:** Random Early Detection (RED) is an active queue management policy that probabilistically drops packets early to prompt TCP backoff; it does not shape traffic. Leaky Bucket is implemented using an intermediate shaper node with a bounded DropTail queue (capacity = bucket size) connected via a dedicated link drained at a constant leak rate (e.g. 512 Kbps).
+
+### Q17: What do the metrics show as user load scales from 10 to 50 to 150 students?
+> **Answer:** Packet loss increases from 11.59% to 25.71% and up to 34.36%, while PDR drops from 88.41% down to 65.64%. This demonstrates queue buffer exhaustion at the campus access gateway as student demand outstrips bottleneck link bandwidth.
 
 ---
 

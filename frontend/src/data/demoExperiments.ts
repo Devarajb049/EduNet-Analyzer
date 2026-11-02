@@ -356,7 +356,27 @@ export const DEMO_DASHBOARD_SUMMARY = {
     udp_avg_delay: 46.9,
     tcp_avg_pdr: 96.5,
     udp_avg_pdr: 90.0,
+    tcp: { throughput: 361.6, loss: 3.5, delay: 28.6, pdr: 96.5, count: 5 },
+    udp: { throughput: 505.1, loss: 10.0, delay: 46.9, pdr: 90.0, count: 4 },
   },
+  pdr_vs_users: [
+    { users: 10, tcp: 99.2, udp: 97.9 },
+    { users: 25, tcp: 97.6, udp: 95.5 },
+    { users: 50, tcp: 96.8, udp: 94.9 },
+    { users: 100, tcp: 92.2, udp: 85.2 },
+  ],
+  traffic_load_data: [
+    { load: 'Low Traffic (10 nodes)', throughput: 95.4, loss: 0.8, delay: 18.2, pdr: 99.2 },
+    { load: 'Medium Traffic (50 nodes)', throughput: 450.0, loss: 3.2, delay: 34.2, pdr: 96.8 },
+    { load: 'High Traffic (100-150 nodes)', throughput: 612.8, loss: 7.8, delay: 48.5, pdr: 92.2 },
+  ],
+  tcp_udp_rates: [
+    { rate: '256 Kbps', rate_kbps: 256, tcpThroughput: 245.2, udpThroughput: 252.0, tcpLoss: 0.2, udpLoss: 0.5, tcpDelay: 15.4, udpDelay: 14.2, tcpPdr: 99.8, udpPdr: 99.5 },
+    { rate: '512 Kbps', rate_kbps: 512, tcpThroughput: 490.5, udpThroughput: 505.0, tcpLoss: 1.1, udpLoss: 2.8, tcpDelay: 22.1, udpDelay: 19.8, tcpPdr: 98.9, udpPdr: 97.2 },
+    { rate: '1 Mbps', rate_kbps: 1000, tcpThroughput: 940.0, udpThroughput: 985.0, tcpLoss: 3.5, udpLoss: 8.4, tcpDelay: 35.8, udpDelay: 28.4, tcpPdr: 96.5, udpPdr: 91.6 },
+    { rate: '2 Mbps', rate_kbps: 2000, tcpThroughput: 1780.0, udpThroughput: 1940.0, tcpLoss: 6.8, udpLoss: 16.2, tcpDelay: 52.4, udpDelay: 38.6, tcpPdr: 93.2, udpPdr: 83.8 },
+    { rate: '5 Mbps', rate_kbps: 5000, tcpThroughput: 4200.0, udpThroughput: 4850.0, tcpLoss: 11.4, udpLoss: 28.5, tcpDelay: 78.2, udpDelay: 49.0, tcpPdr: 88.6, udpPdr: 71.5 },
+  ],
   system_mode: 'DEMO MODE — Predefined Sample Data (Offline)',
   is_ns2_available: false,
 };

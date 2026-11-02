@@ -4,6 +4,18 @@ This guide covers complete deployment workflows for **EduNet Analyzer**, with sp
 
 ---
 
+## 💻 0. Windows Localhost Development (One-Click Launch)
+
+For local development and laboratory evaluation on Windows 10/11 with WSL2 Ubuntu:
+1. Double-click or run:
+   ```powershell
+   .\start.bat
+   ```
+2. `start.bat` automatically verifies the Python virtual environment in `backend\venv`, installs requirements, runs `npm install` in `frontend/`, launches the FastAPI backend at `http://127.0.0.1:8000`, the Vite React frontend at `http://localhost:5173`, and opens your default browser.
+3. NS-2 simulations are executed seamlessly inside WSL2 Ubuntu (`wsl -d Ubuntu -- ns ...`) with path translation.
+
+---
+
 ## 🇮🇳 1. Deploying on Voroa (`https://app.getvoroa.com/new/choose`)
 
 Voroa is an India-first developer cloud hosting platform that connects directly to GitHub. 
@@ -118,8 +130,9 @@ docker-compose down
 
 ## 🛡️ Production Verification Checklist
 
-- [x] All 7 backend automated tests passing (`pytest`)
+- [x] All 9 backend automated tests passing (`pytest` including live NS-2 sub-simulations)
 - [x] Frontend TypeScript types & production build passing (`npm run build`)
+- [x] One-click Windows startup script (`start.bat`) with automatic venv setup
 - [x] Multi-stage root `Dockerfile` bundling Node build + Python 3.11 + NS-2
 - [x] Nginx reverse-proxy configuration with WebSocket proxying (`Upgrade`/`Connection`)
 - [x] CORS configurable via `CORS_ORIGINS`

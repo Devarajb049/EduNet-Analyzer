@@ -7,7 +7,11 @@ from sqlalchemy import func
 from ..database import get_db
 from ..models import Experiment, Result
 from ..schemas import DashboardSummary, DashboardKPIs, ExperimentResponse, ResultResponse
-from ..services.simulation_service import check_ns2_installation
+from ..services.simulation_service import (
+    check_ns2_installation,
+    latest_gbn_result,
+    latest_leaky_bucket_result
+)
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -86,6 +90,7 @@ def get_dashboard_summary(mode: Optional[str] = None, db: Session = Depends(get_
     tp_vs_users = []
     loss_vs_users = []
     delay_vs_users = []
+    pdr_vs_users = []
 
     for u in user_buckets:
         tcp_exps = [e for e in experiments if e.users == u and e.protocol == "TCP" and e.result]
@@ -102,6 +107,75 @@ def get_dashboard_summary(mode: Optional[str] = None, db: Session = Depends(get_
         tcp_delay = round(sum(e.result.average_delay_ms for e in tcp_exps) / len(tcp_exps), 2) if tcp_exps else None
         udp_delay = round(sum(e.result.average_delay_ms for e in udp_exps) / len(udp_exps), 2) if udp_exps else None
         delay_vs_users.append({"users": u, "tcp": tcp_delay, "udp": udp_delay})
+
+        tcp_pdr = round(sum(e.result.packet_delivery_ratio for e in tcp_exps) / len(tcp_exps), 2) if tcp_exps else None
+        udp_pdr = round(sum(e.result.packet_delivery_ratio for e in udp_exps) / len(udp_exps), 2) if udp_exps else None
+        pdr_vs_users.append({"users": u, "tcp": tcp_pdr, "udp": udp_pdr})
+
+    # Dynamic Traffic Load vs Performance (Low: 10, Medium: 50, High: 150)
+    traffic_load_data = []
+    load_tiers = [
+        ("Low", "Low Traffic (10 nodes)", 10),
+        ("Medium", "Medium Traffic (50 nodes)", 50),
+        ("High", "High Traffic (150 nodes)", 150)
+    ]
+    for tier_key, tier_label, expected_users in load_tiers:
+        matching = [
+            e for e in experiments 
+            if e.result and (e.traffic_level.lower() == tier_key.lower() or e.users == expected_users)
+        ]
+        if matching:
+            avg_tp = round(sum(e.result.throughput_kbps for e in matching) / len(matching), 2)
+            avg_loss = round(sum(e.result.packet_loss_percent for e in matching) / len(matching), 2)
+            avg_delay = round(sum(e.result.average_delay_ms for e in matching) / len(matching), 2)
+            avg_pdr = round(sum(e.result.packet_delivery_ratio for e in matching) / len(matching), 2)
+            traffic_load_data.append({
+                "load": tier_label,
+                "throughput": avg_tp,
+                "loss": avg_loss,
+                "delay": avg_delay,
+                "pdr": avg_pdr
+            })
+
+    # Multi-Rate TCP vs UDP Benchmarks across 256K, 512K, 1M, 2M, 5M
+    rate_standards = [
+        ("256 Kbps", 256),
+        ("512 Kbps", 512),
+        ("1 Mbps", 1000),
+        ("2 Mbps", 2000),
+        ("5 Mbps", 5000),
+    ]
+    tcp_udp_rates = []
+    for r_str, r_kbps in rate_standards:
+        tcp_match = [
+            e for e in experiments 
+            if e.result and e.protocol == "TCP" and (r_str.lower() in e.data_rate.lower() or str(r_kbps) in e.data_rate.lower())
+        ]
+        udp_match = [
+            e for e in experiments 
+            if e.result and e.protocol == "UDP" and (r_str.lower() in e.data_rate.lower() or str(r_kbps) in e.data_rate.lower())
+        ]
+        if tcp_match or udp_match:
+            t_tp = round(sum(e.result.throughput_kbps for e in tcp_match) / len(tcp_match), 2) if tcp_match else 0.0
+            u_tp = round(sum(e.result.throughput_kbps for e in udp_match) / len(udp_match), 2) if udp_match else 0.0
+            t_loss = round(sum(e.result.packet_loss_percent for e in tcp_match) / len(tcp_match), 2) if tcp_match else 0.0
+            u_loss = round(sum(e.result.packet_loss_percent for e in udp_match) / len(udp_match), 2) if udp_match else 0.0
+            t_delay = round(sum(e.result.average_delay_ms for e in tcp_match) / len(tcp_match), 2) if tcp_match else 0.0
+            u_delay = round(sum(e.result.average_delay_ms for e in udp_match) / len(udp_match), 2) if udp_match else 0.0
+            t_pdr = round(sum(e.result.packet_delivery_ratio for e in tcp_match) / len(tcp_match), 2) if tcp_match else 0.0
+            u_pdr = round(sum(e.result.packet_delivery_ratio for e in udp_match) / len(udp_match), 2) if udp_match else 0.0
+            tcp_udp_rates.append({
+                "rate": r_str,
+                "rate_kbps": r_kbps,
+                "tcpThroughput": t_tp,
+                "udpThroughput": u_tp,
+                "tcpLoss": t_loss,
+                "udpLoss": u_loss,
+                "tcpDelay": t_delay,
+                "udpDelay": u_delay,
+                "tcpPdr": t_pdr,
+                "udpPdr": u_pdr
+            })
 
     # TCP vs UDP summary comparison
     all_tcp = [e.result for e in experiments if e.protocol == "TCP" and e.result]
@@ -131,13 +205,21 @@ def get_dashboard_summary(mode: Optional[str] = None, db: Session = Depends(get_
     else:
         mode_str = "NS-2 LIVE SIMULATION" if ns_info["installed"] else "DEMO MODE — Sample Data"
 
+    gbn_data = latest_gbn_result.get("trace_points") if latest_gbn_result else None
+
     return DashboardSummary(
         kpis=kpis,
         recent_experiments=recent_responses,
         throughput_vs_users=tp_vs_users,
         loss_vs_users=loss_vs_users,
         delay_vs_users=delay_vs_users,
+        pdr_vs_users=pdr_vs_users,
+        traffic_load_data=traffic_load_data,
+        tcp_udp_rates=tcp_udp_rates,
+        leaky_bucket_comparison=latest_leaky_bucket_result,
+        gbn_trace_data=gbn_data,
         tcp_vs_udp={"tcp": tcp_summary, "udp": udp_summary},
         system_mode=mode_str,
         is_ns2_available=ns_info["installed"]
     )
+

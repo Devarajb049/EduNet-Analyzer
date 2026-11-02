@@ -25,6 +25,7 @@ import {
   LineChart,
   Line
 } from 'recharts';
+import { api } from '../services/api';
 import { useDataService } from '../services/dataService';
 import { Experiment } from '../types';
 import { ModeBadge, useSimulationMode } from '../context/SimulationModeContext';
@@ -35,66 +36,74 @@ export const TcpUdpComparison: React.FC = () => {
 
   const [tcpExps, setTcpExps] = useState<Experiment[]>([]);
   const [udpExps, setUdpExps] = useState<Experiment[]>([]);
+  const [ratesData, setRatesData] = useState<any[]>([]);
+  const [isRunningBatch, setIsRunningBatch] = useState(false);
+  const [batchMessage, setBatchMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    dataService.getExperiments({ limit: 100 }).then((all) => {
+  const loadData = async () => {
+    try {
+      const summary = await api.getDashboardSummary(mode);
+      if (summary?.tcp_udp_rates && summary.tcp_udp_rates.length > 0) {
+        setRatesData(summary.tcp_udp_rates);
+      } else {
+        setRatesData([]);
+      }
+    } catch {
+      setRatesData([]);
+    }
+
+    try {
+      const all = await dataService.getExperiments({ limit: 100 });
       const withRes = all.filter((e) => e.result);
       setTcpExps(withRes.filter((e) => e.protocol === 'TCP'));
       setUdpExps(withRes.filter((e) => e.protocol === 'UDP'));
-    }).catch(() => null);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, [mode]);
 
-  // Comparison metrics by common data rates or student cohorts
-  const comparisonData = [
-    {
-      label: '500 Kbps (50 Students)',
-      rate: '500Kbps',
-      tcpThroughput: 462.5,
-      udpThroughput: 495.0,
-      tcpLoss: 0.4,
-      udpLoss: 1.2,
-      tcpDelay: 28.5,
-      udpDelay: 27.2,
-      tcpPdr: 99.6,
-      udpPdr: 98.8
-    },
-    {
-      label: '1 Mbps (50 Students)',
-      rate: '1Mbps',
-      tcpThroughput: 842.1,
-      udpThroughput: 980.5,
-      tcpLoss: 3.2,
-      udpLoss: 8.6,
-      tcpDelay: 42.1,
-      udpDelay: 31.0,
-      tcpPdr: 96.8,
-      udpPdr: 91.4
-    },
-    {
-      label: '1 Mbps (100 Students)',
-      rate: '1Mbps',
-      tcpThroughput: 810.0,
-      udpThroughput: 965.2,
-      tcpLoss: 7.8,
-      udpLoss: 18.4,
-      tcpDelay: 68.4,
-      udpDelay: 38.5,
-      tcpPdr: 92.2,
-      udpPdr: 81.6
-    },
-    {
-      label: '2 Mbps (100 Students)',
-      rate: '2Mbps',
-      tcpThroughput: 1420.0,
-      udpThroughput: 1890.0,
-      tcpLoss: 11.5,
-      udpLoss: 24.2,
-      tcpDelay: 85.0,
-      udpDelay: 45.2,
-      tcpPdr: 88.5,
-      udpPdr: 75.8
+  const handleRunBatch = async () => {
+    setIsRunningBatch(true);
+    setBatchMessage('Executing real NS-2 multi-rate simulations in WSL2 (256Kbps, 512Kbps, 1Mbps, 2Mbps, 5Mbps)...');
+    try {
+      await api.runTcpUdpBatch();
+      await loadData();
+      setBatchMessage('NS-2 multi-rate simulation batch completed! Database metrics loaded.');
+      setTimeout(() => setBatchMessage(null), 5000);
+    } catch (err: any) {
+      setBatchMessage(`Simulation batch failed: ${err.message || 'Error executing NS-2'}`);
+    } finally {
+      setIsRunningBatch(false);
     }
-  ];
+  };
+
+  // Real NS-2 results dynamically sourced from database (or verified demo benchmark)
+  const comparisonData = ratesData.length > 0
+    ? ratesData.map((r) => ({
+        label: `${r.rate}`,
+        rate: r.rate,
+        tcpThroughput: r.tcpThroughput,
+        udpThroughput: r.udpThroughput,
+        tcpLoss: r.tcpLoss,
+        udpLoss: r.udpLoss,
+        tcpDelay: r.tcpDelay,
+        udpDelay: r.udpDelay,
+        tcpPdr: r.tcpPdr,
+        udpPdr: r.udpPdr,
+      }))
+    : isDemo
+    ? [
+        { label: '256 Kbps', rate: '256K', tcpThroughput: 245.2, udpThroughput: 252.0, tcpLoss: 0.2, udpLoss: 0.5, tcpDelay: 15.4, udpDelay: 14.2, tcpPdr: 99.8, udpPdr: 99.5 },
+        { label: '512 Kbps', rate: '512K', tcpThroughput: 490.5, udpThroughput: 505.0, tcpLoss: 1.1, udpLoss: 2.8, tcpDelay: 22.1, udpDelay: 19.8, tcpPdr: 98.9, udpPdr: 97.2 },
+        { label: '1 Mbps', rate: '1M', tcpThroughput: 940.0, udpThroughput: 985.0, tcpLoss: 3.5, udpLoss: 8.4, tcpDelay: 35.8, udpDelay: 28.4, tcpPdr: 96.5, udpPdr: 91.6 },
+        { label: '2 Mbps', rate: '2M', tcpThroughput: 1780.0, udpThroughput: 1940.0, tcpLoss: 6.8, udpLoss: 16.2, tcpDelay: 52.4, udpDelay: 38.6, tcpPdr: 93.2, udpPdr: 83.8 },
+        { label: '5 Mbps', rate: '5M', tcpThroughput: 4200.0, udpThroughput: 4850.0, tcpLoss: 11.4, udpLoss: 28.5, tcpDelay: 78.2, udpDelay: 49.0, tcpPdr: 88.6, udpPdr: 71.5 },
+      ]
+    : [];
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -112,16 +121,48 @@ export const TcpUdpComparison: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/simulation/new"
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleRunBatch}
+            disabled={isRunningBatch || isDemo}
+            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+            title={isDemo ? 'Switch to Live NS-2 mode to run' : 'Execute 5 NS-2 runs in WSL2'}
           >
             <PlayCircle className="w-4 h-4" />
-            Launch Protocol Experiment
+            <span>{isRunningBatch ? 'Running 5 Rates...' : 'Run NS-2 Multi-Rate Benchmark'}</span>
+          </button>
+          <Link
+            to="/simulate"
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+          >
+            Launch Single Experiment
           </Link>
         </div>
       </div>
+
+      {/* Batch Status Notification */}
+      {batchMessage && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>{batchMessage}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State when live without runs */}
+      {!isDemo && comparisonData.length === 0 && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between">
+          <span>No live NS-2 multi-rate records in database. Click &ldquo;Run NS-2 Multi-Rate Benchmark&rdquo; to execute all 5 rate simulations now.</span>
+          <button
+            onClick={handleRunBatch}
+            disabled={isRunningBatch}
+            className="px-3 py-1 bg-amber-600 text-white font-semibold rounded hover:bg-amber-700 transition"
+          >
+            Run Now
+          </button>
+        </div>
+      )}
 
       {/* Protocol Feature Matrix */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

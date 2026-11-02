@@ -73,6 +73,11 @@ class DashboardSummary(BaseModel):
     throughput_vs_users: List[Dict[str, Any]]
     loss_vs_users: List[Dict[str, Any]]
     delay_vs_users: List[Dict[str, Any]]
+    pdr_vs_users: Optional[List[Dict[str, Any]]] = None
+    traffic_load_data: Optional[List[Dict[str, Any]]] = None
+    tcp_udp_rates: Optional[List[Dict[str, Any]]] = None
+    leaky_bucket_comparison: Optional[Dict[str, Any]] = None
+    gbn_trace_data: Optional[List[Dict[str, Any]]] = None
     tcp_vs_udp: Dict[str, Any]
     system_mode: str
     is_ns2_available: bool
@@ -110,3 +115,34 @@ class SystemStatusResponse(BaseModel):
     db_connected: bool
     database_path: str
     total_experiments: int
+
+class GbnSimulationRequest(BaseModel):
+    window_size: int = Field(default=8, ge=1, le=64)
+    loss_rate: float = Field(default=0.05, ge=0.0, le=0.5)
+    simulation_time: float = Field(default=10.0, ge=3.0, le=60.0)
+
+class GbnSimulationResponse(BaseModel):
+    window_size: int
+    loss_rate: float
+    packets_sent: int
+    packets_received: int
+    packets_dropped: int
+    retransmissions: int
+    trace_points: List[Dict[str, Any]]
+    summary: str
+
+class LeakyBucketRequest(BaseModel):
+    bucket_size: int = Field(default=20, ge=5, le=100)
+    leak_rate: str = Field(default="512Kbps")
+    simulation_time: float = Field(default=10.0, ge=3.0, le=60.0)
+
+class LeakyBucketResponse(BaseModel):
+    bucket_size: int
+    leak_rate: str
+    unshaped_throughput_kbps: float
+    shaped_throughput_kbps: float
+    unshaped_loss_percent: float
+    shaped_loss_percent: float
+    comparison_series: List[Dict[str, Any]]
+    summary: str
+

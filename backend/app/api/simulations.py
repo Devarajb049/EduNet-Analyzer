@@ -1,17 +1,22 @@
 import asyncio
 import json
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from ..database import get_db, SessionLocal
 from ..models import Experiment, Result
 from ..schemas import (
-    SimulationConfigCreate, SimulationStatusResponse, ResultResponse, ExperimentResponse
+    SimulationConfigCreate, SimulationStatusResponse, ResultResponse, ExperimentResponse,
+    GbnSimulationRequest, GbnSimulationResponse, LeakyBucketRequest, LeakyBucketResponse
 )
 from ..services.simulation_service import (
-    active_simulations, run_simulation_task, check_ns2_installation, ws_manager
+    active_simulations, run_simulation_task, check_ns2_installation, ws_manager,
+    run_gbn_simulation, run_leaky_bucket_simulation, run_tcp_udp_comparison_batch,
+    run_full_analysis_pipeline, latest_gbn_result, latest_leaky_bucket_result
 )
 from .experiments import format_experiment_response
+
 
 router = APIRouter(prefix="/simulations", tags=["Simulations"])
 
@@ -139,6 +144,50 @@ def get_simulation_results(id: int, db: Session = Depends(get_db)):
     if not exp:
         raise HTTPException(status_code=404, detail=f"Simulation with ID {id} not found")
     return format_experiment_response(exp)
+
+@router.post("/run-full-analysis")
+async def trigger_full_analysis():
+    """Executes the complete academic suite of NS-2 simulations across all presets and protocols."""
+    results = await run_full_analysis_pipeline(SessionLocal)
+    return {"message": "Full NS-2 analysis suite completed successfully", "results": results}
+
+@router.post("/run-gbn", response_model=GbnSimulationResponse)
+async def trigger_gbn_simulation(config: GbnSimulationRequest):
+    """Runs a live NS-2 Go-Back-N simulation (Agent/TCP Tahoe) with packet drops and retransmissions."""
+    res = await run_gbn_simulation(
+        window_size=config.window_size,
+        loss_rate=config.loss_rate,
+        sim_time=config.simulation_time
+    )
+    return GbnSimulationResponse(**res)
+
+@router.get("/gbn-latest", response_model=Optional[GbnSimulationResponse])
+def get_latest_gbn():
+    if not latest_gbn_result:
+        return None
+    return GbnSimulationResponse(**latest_gbn_result)
+
+@router.post("/run-leaky-bucket", response_model=LeakyBucketResponse)
+async def trigger_leaky_bucket_simulation(config: LeakyBucketRequest):
+    """Runs paired live NS-2 simulations for bursty traffic with and without Leaky Bucket shaping."""
+    res = await run_leaky_bucket_simulation(
+        bucket_size=config.bucket_size,
+        leak_rate=config.leak_rate,
+        sim_time=config.simulation_time
+    )
+    return LeakyBucketResponse(**res)
+
+@router.get("/leaky-bucket-latest", response_model=Optional[LeakyBucketResponse])
+def get_latest_leaky_bucket():
+    if not latest_leaky_bucket_result:
+        return None
+    return LeakyBucketResponse(**latest_leaky_bucket_result)
+
+@router.post("/run-tcp-udp-batch")
+async def trigger_tcp_udp_batch():
+    """Runs live NS-2 multi-rate benchmarks (256K, 512K, 1M, 2M, 5M) for TCP vs UDP."""
+    table = await run_tcp_udp_comparison_batch(SessionLocal)
+    return {"message": "TCP vs UDP multi-rate benchmarks completed successfully", "data": table}
 
 @router.websocket("/ws/{id}")
 async def simulation_websocket_endpoint(websocket: WebSocket, id: int):

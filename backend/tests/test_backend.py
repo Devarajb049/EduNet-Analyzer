@@ -72,3 +72,19 @@ def test_system_status():
     data = response.json()
     assert "execution_mode" in data
     assert data["db_connected"] is True
+
+def test_gbn_simulation():
+    response = client.post("/api/simulations/run-gbn", json={"window_size": 4, "loss_rate": 0.05, "simulation_time": 4.0})
+    assert response.status_code == 200
+    data = response.json()
+    assert "packets_sent" in data
+    assert "trace_points" in data
+    assert data["window_size"] == 4
+
+def test_leaky_bucket_simulation():
+    response = client.post("/api/simulations/run-leaky-bucket", json={"bucket_size": 15, "leak_rate": "512Kbps", "simulation_time": 4.0})
+    assert response.status_code == 200
+    data = response.json()
+    assert "shaped_throughput_kbps" in data
+    assert "comparison_series" in data
+

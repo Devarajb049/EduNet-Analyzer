@@ -106,4 +106,61 @@ export const api = {
   getReportPdfUrl(id: number): string {
     return `${API_BASE}/reports/${id}/pdf`;
   },
+
+  async runFullAnalysis(): Promise<{ message: string; results: any }> {
+    const res = await fetch(`${API_BASE}/simulations/run-full-analysis`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error(`Failed to run full analysis pipeline (${res.status})`);
+    return res.json();
+  },
+
+  async runGbnSimulation(config: {
+    window_size?: number;
+    loss_rate?: number;
+    simulation_time?: number;
+  }): Promise<any> {
+    const res = await fetch(`${API_BASE}/simulations/run-gbn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error(`Failed to execute NS-2 Go-Back-N (${res.status})`);
+    return res.json();
+  },
+
+  async getGbnLatest(): Promise<any> {
+    const res = await fetch(`${API_BASE}/simulations/gbn-latest`);
+    if (!res.ok) throw new Error(`Failed to fetch latest GBN results (${res.status})`);
+    return res.json();
+  },
+
+  async runLeakyBucketSimulation(config: {
+    bucket_size?: number;
+    leak_rate?: string;
+    simulation_time?: number;
+  }): Promise<any> {
+    const res = await fetch(`${API_BASE}/simulations/run-leaky-bucket`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error(`Failed to execute NS-2 Leaky Bucket comparison (${res.status})`);
+    return res.json();
+  },
+
+  async getLeakyBucketLatest(): Promise<any> {
+    const res = await fetch(`${API_BASE}/simulations/leaky-bucket-latest`);
+    if (!res.ok) throw new Error(`Failed to fetch latest Leaky Bucket results (${res.status})`);
+    return res.json();
+  },
+
+  async runTcpUdpBatch(): Promise<{ message: string; data: any[] }> {
+    const res = await fetch(`${API_BASE}/simulations/run-tcp-udp-batch`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error(`Failed to run TCP vs UDP batch (${res.status})`);
+    return res.json();
+  },
 };
+

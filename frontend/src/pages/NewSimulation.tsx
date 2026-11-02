@@ -32,13 +32,20 @@ export const NewSimulation: React.FC = () => {
 
   const handleDemoPreset = (users: number) => {
     let traffic: 'Low' | 'Medium' | 'High' = 'Medium';
-    if (users <= 10) traffic = 'Low';
-    else if (users >= 100) traffic = 'High';
+    let rate = '1 Mbps';
+    if (users <= 10) {
+      traffic = 'Low';
+      rate = '512 Kbps';
+    } else if (users >= 100) {
+      traffic = 'High';
+      rate = '2 Mbps';
+    }
 
     setFormData({
       ...formData,
       users,
       traffic_level: traffic,
+      data_rate: rate,
       name: `Demo Scenario: ${users} Students (${formData.protocol})`,
       description: `Predefined ${users}-student laboratory simulation benchmark over ${formData.protocol}.`,
     });
@@ -46,19 +53,28 @@ export const NewSimulation: React.FC = () => {
 
   const handleTrafficPreset = (level: 'Low' | 'Medium' | 'High' | 'Custom') => {
     let rate = formData.data_rate;
+    let students = formData.users;
     if (level === 'Low') {
       rate = '512 Kbps';
+      students = 10;
     } else if (level === 'Medium') {
       rate = '1 Mbps';
+      students = 50;
     } else if (level === 'High') {
       rate = '2 Mbps';
+      students = 150;
     }
     setFormData({
       ...formData,
       traffic_level: level,
       data_rate: rate,
+      users: students,
+      name: isDemo
+        ? `Demo Scenario: ${students} Students (${formData.protocol})`
+        : `Live NS-2: ${level} Load (${students} Students, ${rate})`,
     });
   };
+
 
   const validateConfig = (): boolean => {
     const errs: { [key: string]: boolean } = {};
@@ -351,10 +367,10 @@ export const NewSimulation: React.FC = () => {
                 onChange={(e) => handleTrafficPreset(e.target.value as any)}
                 className="w-full px-3 py-2 text-xs rounded-lg border border-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
               >
-                <option value="Low">Low (Light student browsing)</option>
-                <option value="Medium">Medium (Moderate classroom stream)</option>
-                <option value="High">High (Campus-wide lecture peak)</option>
-                <option value="Custom">Custom (Configured link limit)</option>
+                <option value="Low">LOW Preset (10 Students, 512 Kbps)</option>
+                <option value="Medium">MEDIUM Preset (50 Students, 1 Mbps)</option>
+                <option value="High">HIGH Preset (150 Students, 2 Mbps)</option>
+                <option value="Custom">Custom (Manual Student & Rate Config)</option>
               </select>
             </div>
 
