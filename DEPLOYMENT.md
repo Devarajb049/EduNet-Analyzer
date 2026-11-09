@@ -31,15 +31,15 @@ EduNet Analyzer provides two deployment options on Voroa:
 4. Configure the service settings:
    - **Service Name**: `edunet-analyzer`
    - **Branch**: `main`
-   - **Dockerfile Path**: `./Dockerfile` (or leave default `Dockerfile`)
-   - **Port**: `8000`
+   - **Dockerfile Path**: `./Dockerfile` (root unified Dockerfile)
+   - **Port**: `8000` (or leave default; container exposes both `8000` and `80`)
 5. Environment Variables:
    ```env
    PORT=8000
    CORS_ORIGINS=*
    ```
-6. Click **Deploy**.
-7. Once deployment finishes, Voroa will provide your live URL: `https://edunet-analyzer.getvoroa.com` (or your chosen subdomain).
+6. Click **Deploy** (or **Redeploy** if existing service).
+7. Once deployment finishes, Voroa will provide your live URL: `https://edunet-analyzer.getvoroa.com`.
 8. Visit the URL in your browser — your full-stack application with live NS-2 telemetry is live!
 
 ---
@@ -62,15 +62,33 @@ If you prefer deploying the frontend and backend as two independent Voroa servic
 1. At [https://app.getvoroa.com/new/choose](https://app.getvoroa.com/new/choose), choose **Static Site**.
 2. Connect `Devarajb049/EduNet-Analyzer`.
 3. Configure:
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm install && npm run build`
+   - **Root Directory**: `.` (or `frontend`)
+   - **Build Command**: `npm run build`
    - **Publish Directory**: `dist`
    - **Environment Variables**:
      ```env
      VITE_API_BASE=https://edunet-api.getvoroa.com/api
      VITE_WS_URL=wss://edunet-api.getvoroa.com/api/simulations
      ```
-4. Click **Deploy**.
+4. Click **Deploy**. Both `_redirects` and SPA fallback rules are bundled to prevent 404 errors on browser refresh.
+
+---
+
+## 🛠️ Diagnosing & Resolving "404 Page Not Found"
+
+If your deployed website returns `404 page not found`:
+1. **Root Output Directory Mismatch (Static Hosting)**:
+   - *Problem:* Cloud static hosts expect build outputs in `./dist`, but Vite previously built into `frontend/dist/`.
+   - *Fix:* Root `npm run build` compiles Vite and automatically mirrors the build artifact to both `dist/` and `frontend/dist/`.
+2. **Missing Single Page App (SPA) Rewrites**:
+   - *Problem:* Direct visits or page refreshes on subroutes like `/dashboard`, `/simulation/new`, or `/experiments/1` returned 404.
+   - *Fix:* Added `_redirects` (`/* /index.html 200`) and updated `vercel.json` rewrites.
+3. **Backend Static Directory Resolution**:
+   - *Problem:* When running the unified container or backend, `STATIC_DIR` resolution failed if relative paths were passed.
+   - *Fix:* `backend/app/main.py` uses `resolve_static_dir()` to discover build artifacts across repo root, `/app/dist`, and `/app/frontend/dist` with explicit `/` and `/{full_path:path}` routes and standard MIME types.
+4. **Port Binding**:
+   - *Problem:* Platform router expects standard port 8000 or dynamic `$PORT`.
+   - *Fix:* Root `Dockerfile` exposes ports `8000` and `80`, while Uvicorn binds dynamically to `0.0.0.0:${PORT:-8000}`.
 
 ---
 

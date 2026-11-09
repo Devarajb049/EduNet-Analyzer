@@ -1,9 +1,11 @@
 import os
+import mimetypes
+from typing import Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from .database import engine, Base, SessionLocal
 from .models import Experiment
@@ -65,38 +67,96 @@ def health_check():
         "version": "1.0.0"
     }
 
+# Register web MIME types to prevent browser nosniff rejection
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("image/svg+xml", ".svg")
+mimetypes.add_type("application/json", ".json")
+mimetypes.add_type("image/x-icon", ".ico")
+
 # Static file serving & SPA Fallback for production deployment
-STATIC_DIR = os.getenv("STATIC_DIR")
-if not STATIC_DIR:
+def resolve_static_dir() -> Optional[str]:
+    # 1. Check explicit environment variable (support absolute and relative)
+    env_dir = os.getenv("STATIC_DIR")
+    if env_dir:
+        clean_env = env_dir.strip()
+        if os.path.exists(clean_env) and os.path.isdir(clean_env):
+            return os.path.abspath(clean_env)
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        rel_to_repo = os.path.join(repo_root, clean_env.lstrip("./").lstrip(".\\"))
+        if os.path.exists(rel_to_repo) and os.path.isdir(rel_to_repo):
+            return os.path.abspath(rel_to_repo)
+
+    # 2. Check candidate directories
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+
     possible_paths = [
-        # In unified container or standard repo layout where frontend dist is compiled
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend", "dist"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist"),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static"),
-        "/app/frontend/dist"
+        os.path.join(repo_root, "frontend", "dist"),
+        os.path.join(repo_root, "dist"),
+        os.path.join(backend_dir, "dist"),
+        os.path.join(backend_dir, "frontend", "dist"),
+        os.path.join(app_dir, "static"),
+        "/app/frontend/dist",
+        "/app/dist",
+        os.path.join(os.getcwd(), "frontend", "dist"),
+        os.path.join(os.getcwd(), "dist"),
     ]
+
+    # Prioritize candidate with index.html
+    for p in possible_paths:
+        if os.path.exists(p) and os.path.isdir(p) and os.path.exists(os.path.join(p, "index.html")):
+            return os.path.abspath(p)
+
     for p in possible_paths:
         if os.path.exists(p) and os.path.isdir(p):
-            STATIC_DIR = p
-            break
+            return os.path.abspath(p)
+
+    return None
+
+STATIC_DIR = resolve_static_dir()
 
 if STATIC_DIR and os.path.exists(STATIC_DIR):
     assets_dir = os.path.join(STATIC_DIR, "assets")
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        # Allow API routes to be handled by routers
-        if full_path.startswith("api/"):
-            return {"error": "API route not found", "path": full_path}
-        file_path = os.path.join(STATIC_DIR, full_path)
-        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
+    @app.get("/")
+    @app.head("/")
+    async def serve_root():
         index_path = os.path.join(STATIC_DIR, "index.html")
         if os.path.exists(index_path):
-            return FileResponse(index_path)
-        return {"error": "Frontend build not found", "path": full_path}
+            return FileResponse(index_path, media_type="text/html")
+        return HTMLResponse(
+            "<html><body><h1>EduNet Analyzer</h1><p>Frontend assets not found. Please run <code>npm run build</code>.</p></body></html>",
+            status_code=503
+        )
+
+    @app.get("/{full_path:path}")
+    @app.head("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Do not capture API routes
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail=f"API route not found: /{full_path}")
+        file_path = os.path.join(STATIC_DIR, full_path)
+        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
+            mime_type, _ = mimetypes.guess_type(file_path)
+            return FileResponse(file_path, media_type=mime_type)
+        index_path = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path, media_type="text/html")
+        raise HTTPException(status_code=404, detail=f"Resource not found: /{full_path}")
+else:
+    @app.get("/")
+    async def fallback_root():
+        return {
+            "status": "online",
+            "service": "EduNet Analyzer API",
+            "message": "Backend API is online. Frontend static build directory was not located.",
+            "health_check": "/api/health",
+            "api_docs": "/docs"
+        }
 
 if __name__ == "__main__":
     import uvicorn

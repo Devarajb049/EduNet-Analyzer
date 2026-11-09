@@ -88,3 +88,29 @@ def test_leaky_bucket_simulation():
     assert "shaped_throughput_kbps" in data
     assert "comparison_series" in data
 
+def test_spa_root_and_fallback_routes():
+    # Test root endpoint
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "EduNet Analyzer" in response.text
+
+    # Test client-side route fallback
+    dash_resp = client.get("/dashboard")
+    assert dash_resp.status_code == 200
+    assert "text/html" in dash_resp.headers["content-type"]
+    assert "EduNet Analyzer" in dash_resp.text
+
+    # Test nested client-side route fallback
+    sim_resp = client.get("/simulation/new")
+    assert sim_resp.status_code == 200
+    assert "text/html" in sim_resp.headers["content-type"]
+
+def test_api_404_not_masked_by_spa():
+    # Unmatched API routes must return 404 JSON, not HTML or 200
+    response = client.get("/api/unknown_endpoint_xyz")
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+
+

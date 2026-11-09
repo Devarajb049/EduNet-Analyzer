@@ -6,7 +6,8 @@
   "scripts": {
     "postinstall": "npm --prefix frontend install",
     "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
+    "build": "npm --prefix frontend run build && node -e \"const fs = require('fs'); if (fs.existsSync('frontend/dist')) { fs.cpSync('frontend/dist', 'dist', {recursive: true}); }\"",
+    "clean": "node -e \"const fs = require('fs'); ['dist', 'frontend/dist'].forEach(d => { if (fs.existsSync(d)) fs.rmSync(d, {recursive: true, force: true}); });\"",
     "preview": "npm --prefix frontend run preview",
     "lint": "npm --prefix frontend run lint",
     "backend": "python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload",

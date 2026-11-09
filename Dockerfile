@@ -24,6 +24,7 @@ FROM python:3.11-slim AS runner
 # Environment settings
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
     PORT=8000 \
     HOST=0.0.0.0 \
     STATIC_DIR=/app/frontend/dist \
@@ -49,14 +50,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application
 COPY backend/ /app/backend
 
-# Copy compiled frontend assets from Stage 1
+# Copy compiled frontend assets from Stage 1 to both /app/frontend/dist and /app/dist
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
+COPY --from=frontend-builder /app/frontend/dist /app/dist
 
 # Prepare simulation and report storage directories
 RUN mkdir -p /app/simulation/generated /app/simulation/traces /app/reports
 
-# Default HTTP/WebSocket port
-EXPOSE 8000
+# Support standard container ports (8000 default, 80 HTTP)
+EXPOSE 8000 80
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

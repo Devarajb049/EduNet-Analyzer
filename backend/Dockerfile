@@ -5,6 +5,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
     PORT=8000 \
     HOST=0.0.0.0 \
     SIMULATION_DIR=/app/simulation
